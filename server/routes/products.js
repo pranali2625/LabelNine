@@ -3,6 +3,25 @@ const router = express.Router();
 const Product = require('../models/Product');
 const { protect, adminOnly } = require('../middleware/auth');
 
+const normalizeImageUrl = (url, req) => {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('//')) return `${req.protocol}:${url}`;
+  if (url.startsWith('/')) return `${req.protocol}://${req.get('host')}${url}`;
+  return `${req.protocol}://${req.get('host')}/${url}`;
+};
+
+const formatProduct = (product, req) => {
+  const p = product.toObject ? product.toObject() : { ...product };
+  p.images = Array.isArray(p.images)
+    ? p.images.map((img) => ({
+        ...img,
+        url: normalizeImageUrl(img.url, req)
+      }))
+    : [];
+  return p;
+};
+
 // @route GET /api/products
 // @desc  Get all active products with filters
 router.get('/', async (req, res) => {
@@ -40,7 +59,7 @@ router.get('/', async (req, res) => {
       total,
       pages: Math.ceil(total / Number(limit)),
       currentPage: Number(page),
-      products
+      products: products.map((product) => formatProduct(product, req))
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -63,7 +82,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    res.json({ success: true, product });
+    res.json({ success: true, product: formatProduct(product, req) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

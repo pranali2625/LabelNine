@@ -30,14 +30,29 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/send-otp', authLimiter);
 
 // CORS
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:4173'
+].filter(Boolean);
+
 app.use(cors({
-  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS policy denied access from origin: ${origin}`));
+    }
+  },
   credentials: true
 }));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+const path = require('path');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -49,6 +64,12 @@ app.use('/api/users', require('./routes/users'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, 'public')));
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
