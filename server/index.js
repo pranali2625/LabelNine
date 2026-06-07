@@ -10,6 +10,9 @@ const { getPool, ensureSchema } = require('./config/db');
 
 const app = express();
 
+// Hostinger/nginx sit in front of Node; required for express-rate-limit client IP detection
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(morgan('dev'));
 
