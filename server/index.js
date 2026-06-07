@@ -1,4 +1,5 @@
 require('./config/env');
+const { env } = require('./config/env');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -27,16 +28,36 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/send-otp', authLimiter);
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:4173'
-].filter(Boolean);
+function getAllowedOrigins() {
+  return [
+    env('CLIENT_URL'),
+    ...(env('CORS_ORIGINS') || '').split(',').map((s) => s.trim()).filter(Boolean),
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4173'
+  ].filter(Boolean);
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+
+  const allowedOrigins = getAllowedOrigins();
+  if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return true;
+
+  try {
+    const { hostname } = new URL(origin);
+    // Hostinger temporary preview URLs (e.g. *.hostingersite.com)
+    if (hostname.endsWith('.hostingersite.com')) return true;
+  } catch {
+    // ignore invalid origin URLs
+  }
+
+  return false;
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS policy denied access from origin: ${origin}`));
@@ -81,7 +102,6 @@ app.use((err, req, res, next) => {
 
 async function start() {
   try {
-    const { env } = require('./config/env');
     const fs = require('fs');
     const dbHost = env('DB_HOST') || 'localhost';
     const socket = env('DB_SOCKET') || '/var/lib/mysql/mysql.sock';
