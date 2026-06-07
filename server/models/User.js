@@ -81,13 +81,14 @@ class User {
     if (conditions.$or) {
       const parts = conditions.$or.map((cond) => {
         const key = Object.keys(cond)[0];
-        params.push(cond[key]);
-        return key === 'email' ? 'email = ?' : 'phone = ?';
+        const value = cond[key];
+        params.push(key === 'email' ? String(value).toLowerCase() : value);
+        return key === 'email' ? 'LOWER(email) = ?' : 'phone = ?';
       });
       sql += ` AND (${parts.join(' OR ')})`;
     } else if (conditions.email) {
-      sql += ' AND email = ?';
-      params.push(conditions.email);
+      sql += ' AND LOWER(email) = ?';
+      params.push(String(conditions.email).toLowerCase());
     } else if (conditions.phone) {
       sql += ' AND phone = ?';
       params.push(conditions.phone);
@@ -163,7 +164,7 @@ class User {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.name,
-        data.email || null,
+        data.email ? String(data.email).toLowerCase() : null,
         data.phone || null,
         hashedPassword || null,
         data.role || 'user',

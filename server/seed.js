@@ -135,9 +135,10 @@ const seed = async () => {
   await Product.insertMany(productsWithSlugs);
   console.log(`Inserted ${products.length} products`);
 
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@labelnine.in').toLowerCase();
   const admin = await User.create({
     name: 'Label Nine Admin',
-    email: process.env.ADMIN_EMAIL || 'admin@labelnine.com',
+    email: adminEmail,
     password: process.env.ADMIN_PASSWORD || 'Admin@123',
     role: 'admin',
     isEmailVerified: true,
