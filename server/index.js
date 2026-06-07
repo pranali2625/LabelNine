@@ -83,7 +83,7 @@ async function start() {
   try {
     const { env } = require('./config/env');
     console.log('DB config:', {
-      host: env('DB_HOST') || '127.0.0.1',
+      host: env('DB_HOST') === 'localhost' ? '127.0.0.1' : (env('DB_HOST') || '127.0.0.1'),
       user: env('DB_USER') ? `${env('DB_USER').slice(0, 8)}...` : '(NOT SET)',
       database: env('DB_NAME') || '(NOT SET)',
       password: env('DB_PASSWORD') ? '(set)' : '(NOT SET)'
