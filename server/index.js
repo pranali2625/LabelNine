@@ -83,12 +83,13 @@ async function start() {
   try {
     const { env } = require('./config/env');
     const fs = require('fs');
+    const dbHost = env('DB_HOST') || 'localhost';
     const socket = env('DB_SOCKET') || '/var/lib/mysql/mysql.sock';
-    const useSocket = env('DB_HOST') === 'localhost' && fs.existsSync(socket);
+    const useSocket = !!env('DB_SOCKET') || (dbHost === 'localhost' && fs.existsSync(socket));
 
     console.log('DB config:', {
-      mode: useSocket || env('DB_SOCKET') ? 'socket' : 'tcp',
-      host: useSocket ? socket : (env('DB_HOST') || '127.0.0.1'),
+      mode: useSocket ? 'socket' : 'tcp',
+      host: useSocket ? socket : dbHost,
       user: env('DB_USER') ? `${env('DB_USER').slice(0, 8)}...` : '(NOT SET)',
       database: env('DB_NAME') || '(NOT SET)',
       password: env('DB_PASSWORD') ? '(set)' : '(NOT SET)'

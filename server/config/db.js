@@ -29,14 +29,23 @@ function getDbConfig() {
   const host = env('DB_HOST') || 'localhost';
   const socketPath = env('DB_SOCKET');
 
-  // Hostinger MySQL users are granted for 'localhost' (socket), not '127.0.0.1' (TCP).
-  if (socketPath || (host === 'localhost' && fs.existsSync(DEFAULT_SOCKET))) {
-    return { ...base, socketPath: socketPath || DEFAULT_SOCKET };
+  // Explicit socket path (Hostinger shared hosting, or override via DB_SOCKET).
+  if (socketPath) {
+    return { ...base, socketPath };
+  }
+
+  // mysql2 uses a unix socket for host 'localhost' on Linux. Hostinger grants DB
+  // users for 'localhost' only — connecting as 127.0.0.1 (TCP) causes access denied.
+  if (host === 'localhost') {
+    if (fs.existsSync(DEFAULT_SOCKET)) {
+      return { ...base, socketPath: DEFAULT_SOCKET };
+    }
+    return { ...base, host: 'localhost' };
   }
 
   return {
     ...base,
-    host: host === 'localhost' ? '127.0.0.1' : host,
+    host,
     port: Number(env('DB_PORT')) || 3306
   };
 }
