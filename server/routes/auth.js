@@ -62,7 +62,7 @@ router.post('/login', async (req, res) => {
     const isPhone = /^[6-9]\d{9}$/.test(identifier);
     const query = isPhone ? { phone: identifier } : { email: identifier.toLowerCase() };
 
-    const user = await User.findOne(query).select('+password');
+    const user = await User.findOne(query, '+password');
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
@@ -129,7 +129,7 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const query = email ? { email: email.toLowerCase() } : { phone };
-    const user = await User.findOne(query).select('+otp +otpExpire');
+    const user = await User.findOne(query, '+otp +otpExpire');
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });

@@ -6,7 +6,7 @@ const { protect } = require('../middleware/auth');
 // @route GET /api/users/profile
 router.get('/profile', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password -otp -otpExpire');
+    const user = await User.findById(req.user._id, '-password -otp -otpExpire');
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -40,7 +40,7 @@ router.put('/profile', protect, async (req, res) => {
 router.put('/password', protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user._id, '+password');
 
     if (!(await user.matchPassword(currentPassword))) {
       return res.status(401).json({ success: false, message: 'Current password is incorrect' });
