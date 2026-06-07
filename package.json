@@ -9,7 +9,8 @@
     "build": "cd client && npm run build && rm -rf ../server/public && cp -r dist ../server/public",
     "install:all": "cd server && npm install --omit=dev && cd ../client && npm install --include=dev",
     "postinstall": "npm run install:all",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "seed": "cd server && npm run seed"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

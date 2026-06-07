@@ -46,8 +46,7 @@ router.put('/password', protect, async (req, res) => {
       return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    user.password = newPassword;
-    await user.save();
+    await user._savePassword(newPassword);
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -59,12 +58,7 @@ router.post('/addresses', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
-    if (req.body.isDefault) {
-      user.addresses.forEach(a => (a.isDefault = false));
-    }
-
-    user.addresses.push(req.body);
-    await user.save();
+    await user.pushAddress(req.body);
     res.status(201).json({ success: true, addresses: user.addresses });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -75,17 +69,12 @@ router.post('/addresses', protect, async (req, res) => {
 router.put('/addresses/:addressId', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    const address = user.addresses.id(req.params.addressId);
+    const address = user.addressesId(req.params.addressId);
     if (!address) {
       return res.status(404).json({ success: false, message: 'Address not found' });
     }
 
-    if (req.body.isDefault) {
-      user.addresses.forEach(a => (a.isDefault = false));
-    }
-
-    Object.assign(address, req.body);
-    await user.save();
+    await user.updateAddress(req.params.addressId, req.body);
     res.json({ success: true, addresses: user.addresses });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -96,8 +85,7 @@ router.put('/addresses/:addressId', protect, async (req, res) => {
 router.delete('/addresses/:addressId', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    user.addresses.pull({ _id: req.params.addressId });
-    await user.save();
+    await user.pullAddress(req.params.addressId);
     res.json({ success: true, addresses: user.addresses });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -3,7 +3,7 @@
  * Run: node seed.js
  */
 require('dotenv').config();
-const mongoose = require('mongoose');
+const { pool, ensureSchema } = require('./config/db');
 const User = require('./models/User');
 const Product = require('./models/Product');
 
@@ -121,22 +121,20 @@ const products = [
 ];
 
 const seed = async () => {
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('Connected to MongoDB');
+  await pool.query('SELECT 1');
+  await ensureSchema();
+  console.log('Connected to MySQL');
 
-  // Clear existing
   await Product.deleteMany({});
   await User.deleteMany({ role: 'admin' });
 
-  // Create products (insertMany bypasses pre-save, so generate slugs manually)
-  const productsWithSlugs = products.map(p => ({
+  const productsWithSlugs = products.map((p) => ({
     ...p,
     slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '-' + Date.now() + Math.floor(Math.random() * 1000)
   }));
   await Product.insertMany(productsWithSlugs);
   console.log(`Inserted ${products.length} products`);
 
-  // Create admin
   const admin = await User.create({
     name: 'Label Nine Admin',
     email: process.env.ADMIN_EMAIL || 'admin@labelnine.com',
@@ -147,11 +145,11 @@ const seed = async () => {
   });
   console.log(`Admin created: ${admin.email}`);
 
-  mongoose.connection.close();
+  await pool.end();
   console.log('Seed complete!');
 };
 
-seed().catch(err => {
+seed().catch((err) => {
   console.error('Seed error:', err);
   process.exit(1);
 });

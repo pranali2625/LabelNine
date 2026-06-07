@@ -22,16 +22,10 @@ router.get('/dashboard', async (req, res) => {
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),
       Order.countDocuments({ orderStatus: { $in: ['placed', 'confirmed'] } }),
-      Product.find({
-        isActive: true,
-        'sizes.stock': { $lte: 5 }
-      }).select('name sizes').limit(10)
+      Product.findLowStock(10)
     ]);
 
-    const recentOrders = await Order.find()
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate('user', 'name email phone');
+    const recentOrders = await Order.find({}, { populate: 'user', sort: { createdAt: -1 }, limit: 10 });
 
     res.json({
       success: true,
@@ -61,11 +55,12 @@ router.get('/orders', async (req, res) => {
     if (search) query.orderId = { $regex: search, $options: 'i' };
 
     const total = await Order.countDocuments(query);
-    const orders = await Order.find(query)
-      .populate('user', 'name email phone')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(Number(limit));
+    const orders = await Order.find(query, {
+      populate: 'user',
+      sort: { createdAt: -1 },
+      skip: (page - 1) * limit,
+      limit: Number(limit)
+    });
 
     res.json({ success: true, total, pages: Math.ceil(total / limit), orders });
   } catch (err) {
@@ -75,7 +70,7 @@ router.get('/orders', async (req, res) => {
 
 router.get('/orders/:orderId', async (req, res) => {
   try {
-    const order = await Order.findOne({ orderId: req.params.orderId }).populate('user', 'name email phone');
+    const order = await Order.findOne({ orderId: req.params.orderId }, { populate: 'user' });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     res.json({ success: true, order });
   } catch (err) {
@@ -128,7 +123,11 @@ router.get('/users', async (req, res) => {
     ];
 
     const total = await User.countDocuments(query);
-    const users = await User.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit));
+    const users = await User.find(query, {
+      sort: { createdAt: -1 },
+      skip: (Number(page) - 1) * Number(limit),
+      limit: Number(limit)
+    });
 
     res.json({ success: true, total, users });
   } catch (err) {
@@ -151,7 +150,7 @@ router.patch('/users/:id/status', async (req, res) => {
 // ──────────────────────────────────────────────────
 router.get('/products', async (req, res) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find({}, { sort: { createdAt: -1 } });
     res.json({ success: true, products });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

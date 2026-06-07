@@ -73,9 +73,10 @@ router.post('/', protect, async (req, res) => {
 // @desc  Get logged-in user's orders
 router.get('/my', protect, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate('items.product', 'name images variety')
-      .sort({ createdAt: -1 });
+    const orders = await Order.find(
+      { user: req.user._id },
+      { populate: 'items.product', sort: { createdAt: -1 } }
+    );
     res.json({ success: true, orders });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -86,8 +87,7 @@ router.get('/my', protect, async (req, res) => {
 // @desc  Public order tracking by orderId
 router.get('/track/:orderId', async (req, res) => {
   try {
-    const order = await Order.findOne({ orderId: req.params.orderId })
-      .select('orderId orderStatus trackingHistory estimatedDelivery shippingAddress.city shippingAddress.state items.name items.size items.quantity totalAmount paymentInfo.status createdAt deliveredAt');
+    const order = await Order.findForTracking(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found. Check your order ID.' });
@@ -105,11 +105,11 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const order = await Order.findOne({
       $or: [
-        { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null },
+        ...(req.params.id.match(/^\d+$/) ? [{ _id: req.params.id }] : []),
         { orderId: req.params.id }
-      ].filter(q => q && Object.values(q)[0] !== null),
+      ],
       user: req.user._id
-    }).populate('items.product', 'name images variety slug');
+    }, { populate: 'items.product' });
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });

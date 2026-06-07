@@ -72,7 +72,7 @@ router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findOne({
       $or: [
-        ...(req.params.id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: req.params.id }] : []),
+        ...(req.params.id.match(/^\d+$/) ? [{ _id: req.params.id }] : []),
         { slug: req.params.id }
       ],
       isActive: true
