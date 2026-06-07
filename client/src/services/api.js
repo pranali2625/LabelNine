@@ -12,14 +12,23 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Handle 401 globally
+// Redirect to login only when an authenticated session expires — not on failed login attempts
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('ln_token')
-      localStorage.removeItem('ln_user')
-      window.location.href = '/login'
+      const url = err.config?.url || ''
+      const message = err.response?.data?.message || ''
+      const isAuthEndpoint = url.includes('/auth/')
+      const isCredentialError = ['Invalid credentials', 'Current password is incorrect'].includes(message)
+      const onAuthPage = ['/login', '/register'].includes(window.location.pathname)
+      const hadToken = !!localStorage.getItem('ln_token')
+
+      if (hadToken && !isAuthEndpoint && !isCredentialError && !onAuthPage) {
+        localStorage.removeItem('ln_token')
+        localStorage.removeItem('ln_user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(err)
   }
