@@ -6,7 +6,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
-    "build": "cd client && npm run build && rm -rf ../server/public && cp -r dist ../server/public",
+    "build": "cd client && npm run build && node ../scripts/copy-build.js",
     "install:all": "cd server && npm install --omit=dev && cd ../client && npm install --include=dev",
     "postinstall": "npm run install:all",
     "start": "cd server && npm start",

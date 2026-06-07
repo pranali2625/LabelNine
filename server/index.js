@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const { getPool, ensureSchema } = require('./config/db');
 
 const app = express();
@@ -88,10 +89,24 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.get(/^\/(?!api).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+const publicDir = path.join(__dirname, 'public');
+const indexHtml = path.join(publicDir, 'index.html');
+const hasFrontend = fs.existsSync(indexHtml);
+
+if (hasFrontend) {
+  app.use(express.static(publicDir));
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(indexHtml);
+  });
+} else {
+  console.warn(`Frontend build missing at ${indexHtml} — run "npm run build" from project root`);
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Frontend not deployed. Run "npm run build" and upload server/public to the server.'
+    });
+  });
+}
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
@@ -105,7 +120,6 @@ app.use((err, req, res, next) => {
 
 async function start() {
   try {
-    const fs = require('fs');
     const dbHost = env('DB_HOST') || 'localhost';
     const socket = env('DB_SOCKET') || '/var/lib/mysql/mysql.sock';
     const useSocket = !!env('DB_SOCKET') || (dbHost === 'localhost' && fs.existsSync(socket));
