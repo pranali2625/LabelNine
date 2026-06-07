@@ -7,6 +7,8 @@ const { env, requireEnv } = require('./env');
 
 let pool;
 
+const DEFAULT_SOCKET = '/var/lib/mysql/mysql.sock';
+
 function getDbConfig() {
   if (env('DATABASE_URL')) {
     return env('DATABASE_URL');
@@ -14,14 +16,7 @@ function getDbConfig() {
 
   requireEnv(['DB_USER', 'DB_PASSWORD', 'DB_NAME']);
 
-  // Use 127.0.0.1 instead of localhost — on many hosts "localhost" resolves to
-  // IPv6 ::1, but MySQL users are often only granted for 127.0.0.1 / localhost socket.
-  let host = env('DB_HOST') || '127.0.0.1';
-  if (host === 'localhost') host = '127.0.0.1';
-
-  return {
-    host,
-    port: Number(env('DB_PORT')) || 3306,
+  const base = {
     user: env('DB_USER'),
     password: env('DB_PASSWORD'),
     database: env('DB_NAME'),
@@ -29,6 +24,20 @@ function getDbConfig() {
     connectionLimit: 10,
     queueLimit: 0,
     timezone: 'Z'
+  };
+
+  const host = env('DB_HOST') || 'localhost';
+  const socketPath = env('DB_SOCKET');
+
+  // Hostinger MySQL users are granted for 'localhost' (socket), not '127.0.0.1' (TCP).
+  if (socketPath || (host === 'localhost' && fs.existsSync(DEFAULT_SOCKET))) {
+    return { ...base, socketPath: socketPath || DEFAULT_SOCKET };
+  }
+
+  return {
+    ...base,
+    host: host === 'localhost' ? '127.0.0.1' : host,
+    port: Number(env('DB_PORT')) || 3306
   };
 }
 
