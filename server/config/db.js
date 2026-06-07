@@ -1,21 +1,42 @@
+require('./env');
+
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const { env, requireEnv } = require('./env');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  timezone: 'Z'
-});
+let pool;
+
+function getDbConfig() {
+  if (env('DATABASE_URL')) {
+    return env('DATABASE_URL');
+  }
+
+  requireEnv(['DB_USER', 'DB_PASSWORD', 'DB_NAME']);
+
+  return {
+    host: env('DB_HOST') || '127.0.0.1',
+    port: Number(env('DB_PORT')) || 3306,
+    user: env('DB_USER'),
+    password: env('DB_PASSWORD'),
+    database: env('DB_NAME'),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    timezone: 'Z'
+  };
+}
+
+function getPool() {
+  if (!pool) {
+    pool = mysql.createPool(getDbConfig());
+  }
+  return pool;
+}
 
 async function ensureSchema() {
-  const [tables] = await pool.query("SHOW TABLES LIKE 'users'");
+  const db = getPool();
+  const [tables] = await db.query("SHOW TABLES LIKE 'users'");
   if (tables.length > 0) return;
 
   const schemaPath = path.join(__dirname, '../migrations/schema.sql');
@@ -26,9 +47,15 @@ async function ensureSchema() {
     .filter((s) => s.length > 0 && !s.startsWith('--'));
 
   for (const statement of statements) {
-    await pool.query(statement);
+    await db.query(statement);
   }
   console.log('Database schema created');
 }
 
-module.exports = { pool, ensureSchema };
+module.exports = {
+  getPool,
+  ensureSchema,
+  get pool() {
+    return getPool();
+  }
+};

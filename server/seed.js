@@ -2,7 +2,7 @@
  * Seed script: creates admin user + 5 sample products
  * Run: node seed.js
  */
-require('dotenv').config();
+require('./config/env');
 const { pool, ensureSchema } = require('./config/db');
 const User = require('./models/User');
 const Product = require('./models/Product');

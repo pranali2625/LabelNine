@@ -1,11 +1,11 @@
-require('dotenv').config();
+require('./config/env');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const { pool, ensureSchema } = require('./config/db');
+const { getPool, ensureSchema } = require('./config/db');
 
 const app = express();
 
@@ -57,7 +57,7 @@ app.use('/api/users', require('./routes/users'));
 
 app.get('/health', async (req, res) => {
   try {
-    await pool.query('SELECT 1');
+    await getPool().query('SELECT 1');
     res.json({ status: 'ok', db: 'mysql', time: new Date() });
   } catch (err) {
     res.status(503).json({ status: 'error', db: 'mysql', message: err.message });
@@ -81,7 +81,15 @@ app.use((err, req, res, next) => {
 
 async function start() {
   try {
-    await pool.query('SELECT 1');
+    const { env } = require('./config/env');
+    console.log('DB config:', {
+      host: env('DB_HOST') || '127.0.0.1',
+      user: env('DB_USER') ? `${env('DB_USER').slice(0, 8)}...` : '(NOT SET)',
+      database: env('DB_NAME') || '(NOT SET)',
+      password: env('DB_PASSWORD') ? '(set)' : '(NOT SET)'
+    });
+
+    await getPool().query('SELECT 1');
     console.log('MySQL connected');
     await ensureSchema();
     const PORT = process.env.PORT || 5000;
