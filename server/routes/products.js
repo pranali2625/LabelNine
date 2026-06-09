@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
     const total = await Product.countDocuments(query);
-    const products = await Product.find(query).sort(sortBy).skip(skip).limit(Number(limit));
+    const products = await Product.find(query, { sort: sortBy, skip, limit: Number(limit) });
 
     res.json({
       success: true,
