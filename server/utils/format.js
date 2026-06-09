@@ -1,5 +1,15 @@
 const toBool = (v) => Boolean(v);
 
+const parseJsonField = (value, fallback = []) => {
+  if (value == null || value === '') return fallback;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
 const formatAddress = (row) => ({
   _id: String(row.id),
   name: row.name,
@@ -36,8 +46,8 @@ const formatUser = (row, addresses = []) => {
 
 const formatProduct = (row, images = [], sizes = []) => {
   if (!row) return null;
-  const care = row.care ? (typeof row.care === 'string' ? JSON.parse(row.care) : row.care) : [];
-  const tags = row.tags ? (typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags) : [];
+  const care = parseJsonField(row.care, []);
+  const tags = parseJsonField(row.tags, []);
   const sizeList = sizes.map((s) => ({ size: s.size, stock: s.stock }));
   return {
     _id: String(row.id),

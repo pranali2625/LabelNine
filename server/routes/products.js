@@ -22,10 +22,16 @@ const formatProduct = (product, req) => {
   return p;
 };
 
+const noStore = (res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+};
+
 // @route GET /api/products
 // @desc  Get all active products with filters
 router.get('/', async (req, res) => {
   try {
+    noStore(res);
     const { variety, minPrice, maxPrice, size, sort, page = 1, limit = 12, search, featured } = req.query;
     const query = { isActive: true };
 
@@ -70,6 +76,7 @@ router.get('/', async (req, res) => {
 // @desc  Get single product
 router.get('/:id', async (req, res) => {
   try {
+    noStore(res);
     const product = await Product.findOne({
       $or: [
         ...(req.params.id.match(/^\d+$/) ? [{ _id: req.params.id }] : []),

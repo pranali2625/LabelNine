@@ -32,10 +32,12 @@ export default function Shop() {
         const params = new URLSearchParams({ sort, page, limit: 12 })
         if (variety) params.append('variety', variety)
         if (size) params.append('size', size)
-        const { data } = await api.get(`/products?${params}`)
-        setProducts(data.products)
-        setTotal(data.total)
-        setPages(data.pages)
+        const { data } = await api.get(`/products?${params}`, {
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+        })
+        setProducts(Array.isArray(data?.products) ? data.products : [])
+        setTotal(data?.total ?? 0)
+        setPages(data?.pages ?? 1)
       } catch (e) {
         console.error(e)
       } finally {
@@ -139,7 +141,7 @@ export default function Shop() {
                 </div>
               ))}
             </div>
-          ) : products.length === 0 ? (
+          ) : !products?.length ? (
             <div className="text-center py-20 text-gray-500">
               <p className="text-lg font-medium">No products found</p>
               <p className="text-sm mt-2">Try changing your filters</p>

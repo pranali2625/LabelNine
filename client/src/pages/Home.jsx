@@ -16,8 +16,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/products?featured=true&limit=4')
-      .then(res => setFeatured(res.data.products))
+    api.get('/products?featured=true&limit=4', {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+    })
+      .then(res => setFeatured(Array.isArray(res.data?.products) ? res.data.products : []))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
