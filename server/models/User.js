@@ -64,11 +64,9 @@ class User {
 
   static async findById(id, select = '') {
     const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
-    const excludePassword = select.includes('-password');
-    const includePassword = select.includes('+password');
     const excludeOtp = !select.includes('+otp');
     const user = await User._toUserInstance(rows[0], {
-      excludePassword: excludePassword && !includePassword,
+      excludePassword: !select.includes('+password'),
       excludeOtp: excludeOtp && !select.includes('+otp')
     });
     return user;
@@ -98,11 +96,9 @@ class User {
     }
 
     const [rows] = await pool.query(sql, params);
-    const excludePassword = select.includes('-password');
-    const includePassword = select.includes('+password');
     const excludeOtp = !select.includes('+otp') && !select.includes('+otpExpire');
     return User._toUserInstance(rows[0], {
-      excludePassword: excludePassword && !includePassword,
+      excludePassword: !select.includes('+password'),
       excludeOtp: excludeOtp && !select.includes('+otp')
     });
   }
