@@ -10,7 +10,9 @@ module.exports = {
       },
       instances: 1,
       autorestart: true,
-      max_memory_restart: '300M'
+      max_memory_restart: '512M',
+      max_restarts: 10,
+      min_uptime: '10s'
     }
   ]
 }

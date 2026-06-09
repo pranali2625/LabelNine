@@ -46,10 +46,19 @@ function isOriginAllowed(origin) {
   if (!origin) return true;
 
   const allowedOrigins = getAllowedOrigins();
-  if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.includes(origin)) return true;
 
   try {
     const { hostname } = new URL(origin);
+
+    for (const allowed of allowedOrigins) {
+      try {
+        if (new URL(allowed).hostname === hostname) return true;
+      } catch {
+        // ignore invalid CLIENT_URL values
+      }
+    }
+
     // Hostinger temporary preview URLs (e.g. *.hostingersite.com)
     if (hostname.endsWith('.hostingersite.com')) return true;
   } catch {
@@ -80,14 +89,32 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
 
-app.get('/health', async (req, res) => {
+function getDeployVersion() {
+  try {
+    const stamp = path.join(__dirname, 'DEPLOY_VERSION');
+    if (fs.existsSync(stamp)) return fs.readFileSync(stamp, 'utf8').trim();
+  } catch {
+    // ignore
+  }
+  return process.env.NODE_ENV === 'production' ? 'unknown' : 'dev';
+}
+
+async function healthHandler(req, res) {
   try {
     await getPool().query('SELECT 1');
-    res.json({ status: 'ok', db: 'mysql', time: new Date() });
+    res.json({
+      status: 'ok',
+      db: 'mysql',
+      time: new Date(),
+      deploy: getDeployVersion()
+    });
   } catch (err) {
     res.status(503).json({ status: 'error', db: 'mysql', message: err.message });
   }
-});
+}
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 const publicDir = path.join(__dirname, 'public');
 const indexHtml = path.join(publicDir, 'index.html');
@@ -118,29 +145,54 @@ app.use((err, req, res, next) => {
   });
 });
 
+async function connectDatabase(retries = 5, delayMs = 3000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await getPool().query('SELECT 1');
+      return;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      console.warn(`MySQL not ready (attempt ${attempt}/${retries}): ${err.message}`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function start() {
   try {
     const dbHost = env('DB_HOST') || 'localhost';
     const socket = env('DB_SOCKET') || '/var/lib/mysql/mysql.sock';
-    const useSocket = !!env('DB_SOCKET') || (dbHost === 'localhost' && fs.existsSync(socket));
+    const isLocalHost = dbHost === 'localhost' || dbHost === '127.0.0.1';
+    const useSocket = !!env('DB_SOCKET') || (isLocalHost && process.platform !== 'win32' && fs.existsSync(socket));
 
     console.log('DB config:', {
       mode: useSocket ? 'socket' : 'tcp',
-      host: useSocket ? socket : dbHost,
+      host: useSocket ? (env('DB_SOCKET') || socket) : dbHost,
       user: env('DB_USER') ? `${env('DB_USER').slice(0, 8)}...` : '(NOT SET)',
       database: env('DB_NAME') || '(NOT SET)',
       password: env('DB_PASSWORD') ? '(set)' : '(NOT SET)'
     });
 
-    await getPool().query('SELECT 1');
+    await connectDatabase();
     console.log('MySQL connected');
     await ensureSchema();
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} (deploy: ${getDeployVersion()})`);
+    });
   } catch (err) {
     console.error('MySQL connection error:', err.message);
     process.exit(1);
   }
 }
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
 
 start();

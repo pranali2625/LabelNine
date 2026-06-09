@@ -28,6 +28,7 @@ function getDbConfig() {
 
   const host = env('DB_HOST') || 'localhost';
   const socketPath = env('DB_SOCKET');
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
   // Explicit socket path (Hostinger shared hosting, or override via DB_SOCKET).
   if (socketPath) {
@@ -36,8 +37,8 @@ function getDbConfig() {
 
   // mysql2 uses a unix socket for host 'localhost' on Linux. Hostinger grants DB
   // users for 'localhost' only — connecting as 127.0.0.1 (TCP) causes access denied.
-  if (host === 'localhost') {
-    if (fs.existsSync(DEFAULT_SOCKET)) {
+  if (isLocalHost) {
+    if (process.platform !== 'win32' && fs.existsSync(DEFAULT_SOCKET)) {
       return { ...base, socketPath: DEFAULT_SOCKET };
     }
     return { ...base, host: 'localhost' };
