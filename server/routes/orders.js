@@ -4,12 +4,13 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 const { generateOrderId, calculatePrices } = require('../utils/helpers');
+const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
 
 // @route POST /api/orders
 // @desc  Place a new order
 router.post('/', protect, async (req, res) => {
   try {
-    const { items, shippingAddress, paymentMethod = 'UPI' } = req.body;
+    const { items, shippingAddress, paymentMethod = 'COD' } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in order' });
@@ -43,6 +44,8 @@ router.post('/', protect, async (req, res) => {
 
     const { itemsPrice, shippingPrice, taxPrice, totalAmount } = calculatePrices(orderItems);
 
+    const isCOD = paymentMethod === 'COD';
+
     const order = await Order.create({
       orderId: generateOrderId(),
       user: req.user._id,
@@ -52,8 +55,18 @@ router.post('/', protect, async (req, res) => {
       shippingPrice,
       taxPrice,
       totalAmount,
-      paymentInfo: { method: paymentMethod }
+      paymentInfo: { method: paymentMethod, status: 'pending' },
+      ...(isCOD && { orderStatus: 'confirmed' })
     });
+
+    if (isCOD) {
+      order.trackingHistory.push({
+        status: 'confirmed',
+        message: 'Order confirmed. Pay cash on delivery.',
+        timestamp: new Date()
+      });
+      await order.save();
+    }
 
     // Deduct stock
     for (const item of orderItems) {
@@ -61,6 +74,10 @@ router.post('/', protect, async (req, res) => {
         { _id: item.product, 'sizes.size': item.size },
         { $inc: { 'sizes.$.stock': -item.quantity } }
       );
+    }
+
+    if (isCOD) {
+      notifyOrderConfirmed(order, req.user._id);
     }
 
     res.status(201).json({ success: true, order });
@@ -152,6 +169,7 @@ router.patch('/:id/cancel', protect, async (req, res) => {
     }
 
     await order.save();
+    notifyOrderCancelled(order, req.user._id);
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

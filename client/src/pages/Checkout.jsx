@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
-import { CreditCard, Smartphone, Truck } from 'lucide-react'
+import { Banknote, CreditCard, Truck } from 'lucide-react'
 
 const STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry']
 
@@ -22,13 +22,14 @@ export default function Checkout() {
 
   const handleAddressChange = (e) => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
-  const loadRazorpay = () => new Promise(resolve => {
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.onload = () => resolve(true)
-    script.onerror = () => resolve(false)
-    document.body.appendChild(script)
-  })
+  // Online payments (Razorpay UPI/Cards) — add later when enabling prepaid checkout
+  // const loadRazorpay = () => new Promise(resolve => {
+  //   const script = document.createElement('script')
+  //   script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+  //   script.onload = () => resolve(true)
+  //   script.onerror = () => resolve(false)
+  //   document.body.appendChild(script)
+  // })
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault()
@@ -47,66 +48,22 @@ export default function Checkout() {
 
     setLoading(true)
     try {
-      // 1. Create order in DB
       const { data: orderData } = await api.post('/orders', {
         items: items.map(i => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
         shippingAddress: address,
-        paymentMethod: 'UPI'
+        paymentMethod: 'COD'
       })
       const order = orderData.order
 
-      // 2. Load Razorpay
-      const loaded = await loadRazorpay()
-      if (!loaded) {
-        toast.error('Payment gateway failed to load. Please try again.')
-        setLoading(false)
-        return
-      }
+      clearCart()
+      navigate(`/order-success/${order.orderId}`)
 
-      // 3. Create Razorpay order
-      const { data: payData } = await api.post('/payments/create-order', { orderId: order.orderId })
-
-      // 4. Open Razorpay checkout
-      const options = {
-        key: payData.keyId,
-        amount: payData.amount,
-        currency: payData.currency,
-        name: 'Label Nine',
-        description: `Order #${order.orderId}`,
-        order_id: payData.razorpayOrderId,
-        prefill: {
-          name: address.name,
-          contact: address.phone,
-          email: user?.email || ''
-        },
-        theme: { color: '#111111' },
-        handler: async (response) => {
-          try {
-            // 5. Verify payment
-            await api.post('/payments/verify', {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              orderId: order.orderId
-            })
-            clearCart()
-            navigate(`/order-success/${order.orderId}`)
-          } catch {
-            toast.error('Payment verification failed. Contact support.')
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            toast('Payment cancelled. Your order is saved — you can pay from My Orders.', { icon: 'ℹ️' })
-            navigate(`/account/orders/${order.orderId}`)
-          }
-        }
-      }
-
-      const rzp = new window.Razorpay(options)
-      rzp.on('payment.failed', () => toast.error('Payment failed. Please try again.'))
-      rzp.open()
-
+      // Online payment flow (Razorpay) — add later:
+      // const loaded = await loadRazorpay()
+      // if (!loaded) { toast.error('Payment gateway failed to load.'); return }
+      // const { data: payData } = await api.post('/payments/create-order', { orderId: order.orderId })
+      // const rzp = new window.Razorpay({ ...options, handler: verify via /payments/verify })
+      // rzp.open()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Something went wrong. Please try again.')
     } finally {
@@ -173,10 +130,10 @@ export default function Checkout() {
                 <h2 className="font-bold tracking-wide">PAYMENT</h2>
               </div>
               <div className="flex items-center gap-3 border border-black p-4 bg-black/5">
-                <Smartphone className="w-5 h-5" />
+                <Banknote className="w-5 h-5" />
                 <div>
-                  <p className="font-semibold text-sm">UPI / Cards / Net Banking</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Secured by Razorpay. Pay via GPay, PhonePe, Paytm, UPI ID, Debit/Credit cards</p>
+                  <p className="font-semibold text-sm">Cash on Delivery (COD)</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Pay in cash when your order is delivered at your doorstep</p>
                 </div>
               </div>
             </div>
@@ -221,10 +178,10 @@ export default function Checkout() {
                 disabled={loading}
                 className="w-full bg-black text-white py-4 font-semibold tracking-wide mt-6 hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? 'Processing...' : `PAY ₹${orderTotal}`}
+                {loading ? 'Placing order...' : `PLACE ORDER • ₹${orderTotal}`}
               </button>
-              <p className="text-xs text-center text-gray-500 mt-3 flex items-center justify-center gap-1">
-                🔒 100% Secure Payment via Razorpay
+              <p className="text-xs text-center text-gray-500 mt-3">
+                You will pay ₹{orderTotal} in cash on delivery
               </p>
             </div>
           </div>

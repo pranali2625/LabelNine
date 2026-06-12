@@ -30,7 +30,7 @@ export default function OrderSuccess() {
             </div>
           ))}
           <div className="flex justify-between text-sm font-bold pt-3">
-            <span>Total Paid</span>
+            <span>{order.paymentInfo?.method === 'COD' ? 'Total (pay on delivery)' : 'Total Paid'}</span>
             <span>₹{order.totalAmount}</span>
           </div>
           {order.estimatedDelivery && (

@@ -131,8 +131,8 @@ export default function Home() {
             <div className="flex flex-col items-center gap-3">
               <Shield className="w-8 h-8" />
               <div>
-                <p className="font-semibold text-sm tracking-wide">SECURE UPI PAYMENTS</p>
-                <p className="text-gray-500 text-sm">Powered by Razorpay</p>
+                <p className="font-semibold text-sm tracking-wide">CASH ON DELIVERY</p>
+                <p className="text-gray-500 text-sm">Pay when your order arrives</p>
               </div>
             </div>
             <div className="flex flex-col items-center gap-3">

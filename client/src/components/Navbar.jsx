@@ -30,6 +30,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-sm font-medium text-gray-700 hover:text-black tracking-wide transition-colors">HOME</Link>
             <Link to="/shop" className="text-sm font-medium text-gray-700 hover:text-black tracking-wide transition-colors">SHOP</Link>
+            <Link to="/about" className="text-sm font-medium text-gray-700 hover:text-black tracking-wide transition-colors">ABOUT</Link>
             <Link to="/track" className="text-sm font-medium text-gray-700 hover:text-black tracking-wide transition-colors">TRACK ORDER</Link>
           </div>
 
@@ -93,6 +94,7 @@ export default function Navbar() {
           <div className="md:hidden border-t border-gray-100 py-4 space-y-1">
             <Link to="/" onClick={() => setMenuOpen(false)} className="block px-2 py-2 text-sm font-medium text-gray-700 hover:text-black">HOME</Link>
             <Link to="/shop" onClick={() => setMenuOpen(false)} className="block px-2 py-2 text-sm font-medium text-gray-700 hover:text-black">SHOP</Link>
+            <Link to="/about" onClick={() => setMenuOpen(false)} className="block px-2 py-2 text-sm font-medium text-gray-700 hover:text-black">ABOUT</Link>
             <Link to="/track" onClick={() => setMenuOpen(false)} className="block px-2 py-2 text-sm font-medium text-gray-700 hover:text-black">TRACK ORDER</Link>
             {user ? (
               <>

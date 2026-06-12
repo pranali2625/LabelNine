@@ -1,3 +1,4 @@
+// Online payments (Razorpay) — routes kept for when prepaid checkout is enabled
 const express = require('express');
 const router = express.Router();
 const Razorpay = require('razorpay');
@@ -88,17 +89,8 @@ router.post('/verify', protect, async (req, res) => {
 
     await order.save();
 
-    // Send confirmation email
-    try {
-      const User = require('../models/User');
-      const user = await User.findById(req.user._id);
-      if (user?.email) {
-        const { sendOrderConfirmationEmail } = require('../utils/email');
-        await sendOrderConfirmationEmail(user.email, order, user.name);
-      }
-    } catch (e) {
-      console.error('Order email failed:', e.message);
-    }
+    const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+    notifyOrderConfirmed(order, req.user._id);
 
     res.json({ success: true, message: 'Payment verified', order });
   } catch (err) {
@@ -132,7 +124,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       const orderId = payment.notes?.orderId;
 
       if (orderId) {
-        await Order.findOneAndUpdate(
+        const order = await Order.findOneAndUpdate(
           { orderId },
           {
             'paymentInfo.status': 'paid',
@@ -148,6 +140,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             }
           }
         );
+
+        if (order) {
+          const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+          notifyOrderConfirmed(order, order.user?._id || order.user);
+        }
       }
     }
 

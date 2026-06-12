@@ -12,6 +12,9 @@ export default function Footer() {
             <p className="text-gray-400 text-sm leading-relaxed">
               Premium men's shirts crafted with precision and passion. Made for the modern Indian man.
             </p>
+            <Link to="/about" className="inline-block mt-3 text-sm text-gray-400 hover:text-white transition-colors">
+              About Us →
+            </Link>
             <div className="flex gap-4 mt-4">
               <a href="#" aria-label="Instagram" className="text-gray-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -60,7 +63,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs">© 2024 Label Nine. All rights reserved.</p>
-          <p className="text-gray-500 text-xs">Payments secured by Razorpay • Free delivery above ₹499</p>
+          <p className="text-gray-500 text-xs">Cash on Delivery available • Free delivery above ₹499</p>
         </div>
       </div>
     </footer>

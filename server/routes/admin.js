@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const { protect, adminOnly } = require('../middleware/auth');
+const { notifyOrderStatus } = require('../utils/orderNotifications');
 
 // All admin routes require authentication + admin role
 router.use(protect, adminOnly);
@@ -103,6 +104,7 @@ router.patch('/orders/:orderId/status', async (req, res) => {
     }
 
     await order.save();
+    notifyOrderStatus(order, status, order.user?._id || order.user);
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

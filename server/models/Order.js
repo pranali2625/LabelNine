@@ -213,7 +213,7 @@ class Order {
         data.shippingPrice,
         data.taxPrice,
         data.totalAmount,
-        data.paymentInfo?.method || 'UPI',
+        data.paymentInfo?.method || 'COD',
         data.paymentInfo?.status || 'pending',
         data.orderStatus || 'placed',
         estimatedDelivery

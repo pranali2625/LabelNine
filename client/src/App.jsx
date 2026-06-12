@@ -18,6 +18,7 @@ import Register from './pages/Register'
 import Account from './pages/Account'
 import MyOrders from './pages/MyOrders'
 import OrderDetail from './pages/OrderDetail'
+import About from './pages/About'
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard'
@@ -36,6 +37,7 @@ function App() {
             <Route path="shop" element={<Shop />} />
             <Route path="shop/:id" element={<ProductDetail />} />
             <Route path="cart" element={<Cart />} />
+            <Route path="about" element={<About />} />
             <Route path="track" element={<OrderTracking />} />
             <Route path="track/:orderId" element={<OrderTracking />} />
             <Route path="login" element={<Login />} />

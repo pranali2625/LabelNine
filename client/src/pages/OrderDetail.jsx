@@ -104,8 +104,12 @@ export default function OrderDetail() {
           <div className="border border-gray-200 p-5">
             <h3 className="font-bold text-sm tracking-wider mb-3">PAYMENT</h3>
             <p className="text-sm font-medium">{order.paymentInfo?.method}</p>
-            <p className={`text-xs mt-1 font-semibold capitalize ${order.paymentInfo?.status === 'paid' ? 'text-green-600' : 'text-red-500'}`}>
-              {order.paymentInfo?.status === 'paid' ? '✓ Paid' : '✗ Pending'}
+            <p className={`text-xs mt-1 font-semibold capitalize ${
+              order.paymentInfo?.status === 'paid' ? 'text-green-600' :
+              order.paymentInfo?.method === 'COD' ? 'text-amber-600' : 'text-red-500'
+            }`}>
+              {order.paymentInfo?.status === 'paid' ? '✓ Paid' :
+               order.paymentInfo?.method === 'COD' ? 'Pay on delivery' : '✗ Pending'}
             </p>
             {order.paymentInfo?.paidAt && (
               <p className="text-xs text-gray-500 mt-1">{new Date(order.paymentInfo.paidAt).toLocaleString('en-IN')}</p>
