@@ -47,6 +47,10 @@ export default function Footer() {
               <li><Link to="/track" className="text-gray-400 hover:text-white text-sm transition-colors">Track Order</Link></li>
               <li><Link to="/account/orders" className="text-gray-400 hover:text-white text-sm transition-colors">My Orders</Link></li>
               <li><Link to="/account" className="text-gray-400 hover:text-white text-sm transition-colors">My Account</Link></li>
+              <li><Link to="/help/policies" className="text-gray-400 hover:text-white text-sm transition-colors">Shipping &amp; Cancellation</Link></li>
+              <li><Link to="/help/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/help/returns" className="text-gray-400 hover:text-white text-sm transition-colors">Return &amp; Refund</Link></li>
+              <li><Link to="/help/terms" className="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
 
