@@ -4,42 +4,107 @@ const { formatProduct } = require('../utils/format');
 const generateSlug = (name) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '-' + Date.now();
 
+const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true';
+
+const toJsonArray = (value) => {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const PRODUCT_SCALAR_FIELDS = [
+  'name', 'slug', 'variety', 'description', 'price', 'discountedPrice',
+  'fabric', 'fit', 'color', 'isActive', 'isFeatured'
+];
+
+const pickProductScalars = (source, updates = {}) => {
+  const data = {};
+  for (const field of PRODUCT_SCALAR_FIELDS) {
+    data[field] = updates[field] !== undefined ? updates[field] : source[field];
+  }
+  data.care = toJsonArray(updates.care !== undefined ? updates.care : source.care);
+  data.tags = toJsonArray(updates.tags !== undefined ? updates.tags : source.tags);
+  data.price = Number(data.price);
+  data.discountedPrice = data.discountedPrice == null || data.discountedPrice === ''
+    ? null
+    : Number(data.discountedPrice);
+  if (Number.isNaN(data.price)) {
+    throw new Error('Invalid product price');
+  }
+  if (data.discountedPrice != null && Number.isNaN(data.discountedPrice)) {
+    throw new Error('Invalid discounted price');
+  }
+  return data;
+};
+
 class Product {
   constructor(data) {
     Object.assign(this, data);
   }
 
   async save() {
+    const data = pickProductScalars(this, {});
     await pool.query(
       `UPDATE products SET name=?, slug=?, variety=?, description=?, price=?, discounted_price=?,
        fabric=?, fit=?, color=?, care=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
        WHERE id=?`,
       [
-        this.name,
-        this.slug,
-        this.variety,
-        this.description,
-        this.price,
-        this.discountedPrice,
-        this.fabric || null,
-        this.fit || null,
-        this.color || null,
-        JSON.stringify(this.care || []),
-        this.isActive ? 1 : 0,
-        this.isFeatured ? 1 : 0,
-        JSON.stringify(this.tags || []),
+        data.name,
+        data.slug,
+        data.variety,
+        data.description,
+        data.price,
+        data.discountedPrice,
+        data.fabric || null,
+        data.fit || null,
+        data.color || null,
+        JSON.stringify(data.care),
+        toBool(data.isActive) ? 1 : 0,
+        toBool(data.isFeatured) ? 1 : 0,
+        JSON.stringify(data.tags),
         this.id
       ]
     );
 
-    for (const s of this.sizes) {
+    if (Array.isArray(this.sizes)) {
+      for (const s of this.sizes) {
+        await pool.query(
+          `INSERT INTO product_sizes (product_id, size, stock) VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE stock = VALUES(stock)`,
+          [this.id, s.size, Number(s.stock) || 0]
+        );
+      }
+    }
+    return this;
+  }
+
+  static async _syncImages(productId, images) {
+    await pool.query('DELETE FROM product_images WHERE product_id = ?', [productId]);
+    for (const img of images) {
+      if (!img?.url) continue;
+      await pool.query(
+        'INSERT INTO product_images (product_id, url, public_id) VALUES (?, ?, ?)',
+        [productId, img.url, img.publicId || null]
+      );
+    }
+  }
+
+  static async _syncSizes(productId, sizes) {
+    for (const s of sizes) {
       await pool.query(
         `INSERT INTO product_sizes (product_id, size, stock) VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE stock = VALUES(stock)`,
-        [this.id, s.size, s.stock]
+        [productId, s.size, Number(s.stock) || 0]
       );
     }
-    return this;
   }
 
   static async _loadRelations(productId) {
@@ -230,51 +295,44 @@ class Product {
     const existing = await Product.findById(id);
     if (!existing) return null;
 
-    const merged = { ...existing, ...updates, id: existing.id, _id: existing._id };
-    const product = new Product(merged);
+    const productId = existing.id;
+    const data = pickProductScalars(existing, updates);
 
-    await pool.query(
-      `UPDATE products SET name=?, variety=?, description=?, price=?, discounted_price=?,
+    const [result] = await pool.query(
+      `UPDATE products SET name=?, slug=?, variety=?, description=?, price=?, discounted_price=?,
        fabric=?, fit=?, color=?, care=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
        WHERE id=?`,
       [
-        product.name,
-        product.variety,
-        product.description,
-        product.price,
-        product.discountedPrice,
-        product.fabric || null,
-        product.fit || null,
-        product.color || null,
-        JSON.stringify(product.care || []),
-        product.isActive ? 1 : 0,
-        product.isFeatured ? 1 : 0,
-        JSON.stringify(product.tags || []),
-        id
+        data.name,
+        data.slug,
+        data.variety,
+        data.description,
+        data.price,
+        data.discountedPrice,
+        data.fabric || null,
+        data.fit || null,
+        data.color || null,
+        JSON.stringify(data.care),
+        toBool(data.isActive) ? 1 : 0,
+        toBool(data.isFeatured) ? 1 : 0,
+        JSON.stringify(data.tags),
+        productId
       ]
     );
 
-    if (updates.images) {
-      await pool.query('DELETE FROM product_images WHERE product_id = ?', [id]);
-      for (const img of updates.images) {
-        await pool.query(
-          'INSERT INTO product_images (product_id, url, public_id) VALUES (?, ?, ?)',
-          [id, img.url, img.publicId || null]
-        );
-      }
+    if (result.affectedRows === 0) {
+      throw new Error('Product update failed — no matching row in database');
     }
 
-    if (updates.sizes) {
-      for (const s of updates.sizes) {
-        await pool.query(
-          `INSERT INTO product_sizes (product_id, size, stock) VALUES (?, ?, ?)
-           ON DUPLICATE KEY UPDATE stock = VALUES(stock)`,
-          [id, s.size, s.stock]
-        );
-      }
+    if (Array.isArray(updates.images)) {
+      await Product._syncImages(productId, updates.images);
     }
 
-    return Product.findById(id);
+    if (Array.isArray(updates.sizes)) {
+      await Product._syncSizes(productId, updates.sizes);
+    }
+
+    return Product.findById(productId);
   }
 
   static async updateOne(filter, update) {

@@ -215,9 +215,23 @@ const sendOrderCancelledSms = async (phone, order, name) => {
   });
 };
 
+const getOtpTemplateId = () => {
+  const provider = getProvider();
+  return provider === 'msg91'
+    ? process.env.MSG91_TEMPLATE_REGISTRATION_OTP
+    : process.env.FAST2SMS_TEMPLATE_REGISTRATION_OTP;
+};
+
+const sendRegistrationOtpSms = async (phone, name, otp) =>
+  sendTemplateSms(phone, getOtpTemplateId(), {
+    VAR1: name || 'Customer',
+    VAR2: otp
+  });
+
 module.exports = {
   normalizeIndianPhone,
   sendOrderConfirmationSms,
   sendOrderStatusSms,
-  sendOrderCancelledSms
+  sendOrderCancelledSms,
+  sendRegistrationOtpSms
 };

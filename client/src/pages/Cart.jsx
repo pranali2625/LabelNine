@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
 export default function Cart() {
-  const { items, updateQuantity, removeFromCart, cartTotal, shippingCost, tax, orderTotal, cartCount } = useCart()
+  const { items, updateQuantity, removeFromCart, cartTotal, tax, orderTotal, cartCount } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -88,12 +88,12 @@ export default function Cart() {
                 <span className="text-gray-600">Subtotal ({cartCount} items)</span>
                 <span>₹{cartTotal}</span>
               </div>
-              <div className="flex justify-between">
+              {/* <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
                 <span className={shippingCost === 0 ? 'text-green-600 font-medium' : ''}>
                   {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                 </span>
-              </div>
+              </div> */}
               <div className="flex justify-between">
                 <span className="text-gray-600">GST (5%)</span>
                 <span>₹{tax}</span>
@@ -103,12 +103,12 @@ export default function Cart() {
                 <span>₹{orderTotal}</span>
               </div>
             </div>
-            {shippingCost > 0 && (
+            {/* {shippingCost > 0 && (
               <div className="mt-4 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 p-3">
                 <Truck className="w-4 h-4 flex-shrink-0" />
                 <span>Add ₹{499 - cartTotal} more for free shipping!</span>
               </div>
-            )}
+            )} */}
             <button
               onClick={handleCheckout}
               className="w-full bg-black text-white py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-6 flex items-center justify-center gap-2"

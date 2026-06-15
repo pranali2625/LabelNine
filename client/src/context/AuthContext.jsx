@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState } from 'react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -17,19 +17,51 @@ export function AuthProvider({ children }) {
     setUser(userData)
   }
 
-  const register = async ({ name, email, phone, password }) => {
+  const sendRegisterOtp = async ({ name, email, phone, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/register', { name, email, phone, password })
-      saveAuth(data.token, data.user)
-      toast.success('Account created!')
-      return { success: true }
+      const { data } = await api.post('/auth/register/send-otp', { name, email, phone, password })
+      toast.success(data.message || 'OTP sent!')
+      return {
+        success: true,
+        verifyChannel: data.verifyChannel,
+        destination: data.destination,
+        destinations: data.destinations
+      }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Registration failed'
+      const msg = err.response?.data?.message || 'Failed to send OTP'
       toast.error(msg)
       return { success: false, message: msg }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const verifyRegisterOtp = async ({ email, phone, otp }) => {
+    setLoading(true)
+    try {
+      const { data } = await api.post('/auth/register/verify', { email, phone, otp })
+      saveAuth(data.token, data.user)
+      toast.success('Account created!')
+      return { success: true, user: data.user }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Verification failed'
+      toast.error(msg)
+      return { success: false, message: msg }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resendRegisterOtp = async ({ email, phone }) => {
+    try {
+      const { data } = await api.post('/auth/register/resend-otp', { email, phone })
+      toast.success(data.message || 'OTP resent!')
+      return { success: true }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to resend OTP'
+      toast.error(msg)
+      return { success: false }
     }
   }
 
@@ -91,7 +123,21 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, register, login, loginWithOtp, sendOtp, logout, updateUser, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        sendRegisterOtp,
+        verifyRegisterOtp,
+        resendRegisterOtp,
+        login,
+        loginWithOtp,
+        sendOtp,
+        logout,
+        updateUser,
+        isAdmin: user?.role === 'admin'
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

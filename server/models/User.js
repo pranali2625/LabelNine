@@ -8,27 +8,28 @@ class User {
   }
 
   async save() {
-    if (this._id) {
-      await pool.query(
-        `UPDATE users SET name=?, email=?, phone=?, password=?, role=?,
-         is_phone_verified=?, is_email_verified=?, is_active=?, otp=?, otp_expire=?,
-         profile_picture=?, updated_at=NOW() WHERE id=?`,
-        [
-          this.name,
-          this.email || null,
-          this.phone || null,
-          this.password || null,
-          this.role,
-          this.isPhoneVerified ? 1 : 0,
-          this.isEmailVerified ? 1 : 0,
-          this.isActive ? 1 : 0,
-          this.otp || null,
-          this.otpExpire || null,
-          this.profilePicture || null,
-          this.id
-        ]
-      );
-    }
+    const userId = this.id || this._id;
+    if (!userId) return this;
+
+    await pool.query(
+      `UPDATE users SET name=?, email=?, phone=?, password=?, role=?,
+       is_phone_verified=?, is_email_verified=?, is_active=?, otp=?, otp_expire=?,
+       profile_picture=?, updated_at=NOW() WHERE id=?`,
+      [
+        this.name,
+        this.email || null,
+        this.phone || null,
+        this.password || null,
+        this.role,
+        this.isPhoneVerified ? 1 : 0,
+        this.isEmailVerified ? 1 : 0,
+        this.isActive !== false ? 1 : 0,
+        this.otp || null,
+        this.otpExpire || null,
+        this.profilePicture || null,
+        userId
+      ]
+    );
     return this;
   }
 
@@ -41,6 +42,57 @@ class User {
     this.otp = otp;
     this.otpExpire = new Date(Date.now() + 10 * 60 * 1000);
     return otp;
+  }
+
+  getVerifyChannel() {
+    if (this.phone && this.email) return 'both';
+    return this.phone ? 'phone' : 'email';
+  }
+
+  isRegistrationVerified() {
+    if (this.phone && !this.isPhoneVerified) return false;
+    if (this.email && !this.isEmailVerified) return false;
+    return Boolean(this.phone || this.email);
+  }
+
+  static async upsertPendingRegistration({ name, email, phone, password }) {
+    const normalizedEmail = email ? String(email).toLowerCase() : null;
+    const verifyChannel = phone && normalizedEmail ? 'both' : phone ? 'phone' : 'email';
+
+    const existing = await User.findOne({
+      $or: [
+        phone ? { phone } : null,
+        normalizedEmail ? { email: normalizedEmail } : null
+      ].filter(Boolean)
+    }, '+password +otp +otpExpire');
+
+    if (existing?.isRegistrationVerified()) {
+      throw new Error('User already exists with this email or phone');
+    }
+
+    let user = existing;
+    if (user) {
+      user.name = name;
+      if (normalizedEmail) user.email = normalizedEmail;
+      if (phone) user.phone = phone;
+      const salt = await bcrypt.genSalt(12);
+      user.password = await bcrypt.hash(password, salt);
+    } else {
+      user = await User.create({
+        name,
+        email: normalizedEmail,
+        phone: phone || null,
+        password,
+        isPhoneVerified: false,
+        isEmailVerified: false
+      });
+      user = await User.findById(user._id, '+password +otp +otpExpire');
+    }
+
+    const otp = user.generateOtp();
+    await user.save();
+
+    return { user, otp, verifyChannel };
   }
 
   static async _loadAddresses(userId) {
@@ -150,7 +202,7 @@ class User {
 
   static async create(data) {
     let hashedPassword = data.password;
-    if (hashedPassword) {
+    if (hashedPassword && !hashedPassword.startsWith('$2')) {
       const salt = await bcrypt.genSalt(12);
       hashedPassword = await bcrypt.hash(hashedPassword, salt);
     }

@@ -69,10 +69,22 @@ export default function AdminProducts() {
     setSaving(true)
     try {
       const payload = {
-        ...form,
+        name: form.name,
+        variety: form.variety,
+        description: form.description,
         price: parseFloat(form.price),
-        discountedPrice: form.discountedPrice ? parseFloat(form.discountedPrice) : null,
-        images: form.images.filter(i => i.url)
+        discountedPrice: form.discountedPrice !== '' && form.discountedPrice != null
+          ? parseFloat(form.discountedPrice)
+          : null,
+        fabric: form.fabric || null,
+        fit: form.fit || null,
+        color: form.color || null,
+        care: form.care || [],
+        tags: form.tags || [],
+        images: form.images.filter(i => i.url),
+        sizes: form.sizes,
+        isFeatured: !!form.isFeatured,
+        isActive: form.isActive !== false
       }
 
       if (modal === 'add') {

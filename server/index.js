@@ -32,6 +32,8 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/send-otp', authLimiter);
+app.use('/api/auth/register/send-otp', authLimiter);
+app.use('/api/auth/register/resend-otp', authLimiter);
 
 function getAllowedOrigins() {
   return [
@@ -79,6 +81,10 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Razorpay webhook needs raw body for HMAC verification (must run before express.json)
+const { webhookHandler } = require('./routes/payments');
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

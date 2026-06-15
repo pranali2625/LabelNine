@@ -101,7 +101,8 @@ router.post('/verify', protect, async (req, res) => {
 
 // @route POST /api/payments/webhook
 // @desc  Razorpay webhook (for async payment events)
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// Registered in index.js before express.json() so the raw body is available for signature verification
+async function webhookHandler(req, res) {
   try {
     const signature = req.headers['x-razorpay-signature'];
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -152,6 +153,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+}
 
 module.exports = router;
+module.exports.webhookHandler = webhookHandler;

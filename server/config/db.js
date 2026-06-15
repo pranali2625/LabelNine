@@ -61,24 +61,47 @@ function getPool() {
 async function ensureSchema() {
   const db = getPool();
   const [tables] = await db.query("SHOW TABLES LIKE 'users'");
-  if (tables.length > 0) return;
+  if (tables.length === 0) {
+    const schemaPath = path.join(__dirname, '../migrations/schema.sql');
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    const statements = sql
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !s.startsWith('--'));
 
-  const schemaPath = path.join(__dirname, '../migrations/schema.sql');
-  const sql = fs.readFileSync(schemaPath, 'utf8');
-  const statements = sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith('--'));
-
-  for (const statement of statements) {
-    await db.query(statement);
+    for (const statement of statements) {
+      await db.query(statement);
+    }
+    console.log('Database schema created');
   }
-  console.log('Database schema created');
+
+  await applyMigrations();
+}
+
+async function applyMigrations() {
+  const db = getPool();
+  const [tables] = await db.query("SHOW TABLES LIKE 'orders'");
+  if (!tables.length) return;
+
+  const [columns] = await db.query(
+    "SHOW COLUMNS FROM orders LIKE 'payment_method'"
+  );
+  const columnType = columns[0]?.Type || '';
+  if (columnType.includes("'RAZORPAY'")) return;
+
+  await db.query(`
+    ALTER TABLE orders
+    MODIFY COLUMN payment_method
+    ENUM('UPI', 'Card', 'NetBanking', 'Wallet', 'COD', 'RAZORPAY')
+    NOT NULL DEFAULT 'UPI'
+  `);
+  console.log('Migration applied: added RAZORPAY to orders.payment_method');
 }
 
 module.exports = {
   getPool,
   ensureSchema,
+  applyMigrations,
   get pool() {
     return getPool();
   }

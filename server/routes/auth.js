@@ -2,51 +2,166 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
-const { sendOtpEmail } = require('../utils/email');
+const { deliverRegistrationOtp, deliverAuthOtp } = require('../utils/otpDelivery');
 
-// @route POST /api/auth/register
-// @desc  Register with email+password
-router.post('/register', async (req, res) => {
+const userResponse = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  isPhoneVerified: user.isPhoneVerified,
+  isEmailVerified: user.isEmailVerified
+});
+
+const findPendingUser = ({ email, phone }) => {
+  if (email && phone) {
+    return User.findOne(
+      { $or: [{ email: email.toLowerCase() }, { phone }] },
+      '+otp +otpExpire'
+    );
+  }
+  return User.findOne(
+    email ? { email: email.toLowerCase() } : { phone },
+    '+otp +otpExpire'
+  );
+};
+
+// @route POST /api/auth/register/send-otp
+// @desc  Create pending user in users table and send OTP
+router.post('/register/send-otp', async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
     if (!name || (!email && !phone) || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide name, email or phone, and password' });
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, email or phone, and password'
+      });
     }
 
-    const existingUser = await User.findOne({
-      $or: [
-        email ? { email: email.toLowerCase() } : null,
-        phone ? { phone } : null
-      ].filter(Boolean)
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
+    }
+
+    const { otp } = await User.upsertPendingRegistration({
+      name,
+      email: email?.toLowerCase(),
+      phone,
+      password
     });
 
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email or phone' });
+    const delivery = await deliverRegistrationOtp({
+      phone: phone || undefined,
+      email: email?.toLowerCase() || undefined,
+      name,
+      otp
+    });
+
+    res.json({
+      success: true,
+      message: `OTP sent to ${delivery.destination}`,
+      verifyChannel: delivery.channel,
+      destination: delivery.destination,
+      destinations: delivery.destinations
+    });
+  } catch (err) {
+    console.error(err);
+    const status = err.message?.includes('already exists') ? 400 : 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to send OTP' });
+  }
+});
+
+// @route POST /api/auth/register/verify
+// @desc  Verify OTP and complete registration
+router.post('/register/verify', async (req, res) => {
+  try {
+    const { email, phone, otp } = req.body;
+
+    if ((!email && !phone) || !otp) {
+      return res.status(400).json({ success: false, message: 'Email/phone and OTP required' });
     }
 
-    const user = await User.create({ name, email: email?.toLowerCase(), phone, password });
+    const user = await findPendingUser({ email, phone });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Registration not found. Please register again.' });
+    }
+
+    if (user.isRegistrationVerified()) {
+      return res.status(400).json({ success: false, message: 'Account already verified. Please sign in.' });
+    }
+
+    if (!user.otp || user.otp !== String(otp).trim()) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    if (!user.otpExpire || user.otpExpire < new Date()) {
+      return res.status(400).json({ success: false, message: 'OTP has expired. Please register again.' });
+    }
+
+    if (user.phone) user.isPhoneVerified = true;
+    if (user.email) user.isEmailVerified = true;
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
+
     const token = generateToken(user._id);
-
-    // Send OTP for email verification if email provided
-    if (email) {
-      const otp = user.generateOtp();
-      await user.save({ validateBeforeSave: false });
-      try {
-        await sendOtpEmail(email, otp, name);
-      } catch (e) {
-        console.error('Email send failed:', e.message);
-      }
-    }
-
     res.status(201).json({
       success: true,
+      message: 'Account created successfully',
       token,
-      user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, isPhoneVerified: user.isPhoneVerified, isEmailVerified: user.isEmailVerified }
+      user: userResponse(user)
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route POST /api/auth/register/resend-otp
+// @desc  Resend registration OTP for a pending user
+router.post('/register/resend-otp', async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+
+    if (!email && !phone) {
+      return res.status(400).json({ success: false, message: 'Email or phone required' });
+    }
+
+    const user = await findPendingUser({ email, phone });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Registration not found. Please register again.' });
+    }
+
+    if (user.isRegistrationVerified()) {
+      return res.status(400).json({ success: false, message: 'Account already verified. Please sign in.' });
+    }
+
+    const otp = user.generateOtp();
+    await user.save();
+
+    const delivery = await deliverRegistrationOtp({
+      phone: user.phone || undefined,
+      email: user.email || undefined,
+      name: user.name,
+      otp
+    });
+
+    res.json({
+      success: true,
+      message: `OTP resent to ${delivery.destination}`,
+      destination: delivery.destination,
+      destinations: delivery.destinations
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to resend OTP' });
   }
 });
 
@@ -71,11 +186,19 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
+    if (user.phone && !user.isPhoneVerified) {
+      return res.status(403).json({ success: false, message: 'Please verify your phone number to sign in' });
+    }
+
+    if (user.email && !user.isEmailVerified) {
+      return res.status(403).json({ success: false, message: 'Please verify your email to sign in' });
+    }
+
     const token = generateToken(user._id);
     res.json({
       success: true,
       token,
-      user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, isPhoneVerified: user.isPhoneVerified, isEmailVerified: user.isEmailVerified }
+      user: userResponse(user)
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -83,7 +206,7 @@ router.post('/login', async (req, res) => {
 });
 
 // @route POST /api/auth/send-otp
-// @desc  Send OTP to email or phone
+// @desc  Send OTP to email or phone (existing users)
 router.post('/send-otp', async (req, res) => {
   try {
     const { email, phone } = req.body;
@@ -100,17 +223,14 @@ router.post('/send-otp', async (req, res) => {
     }
 
     const otp = user.generateOtp();
-    await user.save({ validateBeforeSave: false });
+    await user.save();
 
-    if (email) {
-      await sendOtpEmail(email, otp, user.name);
-    } else {
-      // Phone OTP: integrate MSG91 / Twilio here
-      // For now, log in dev mode
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`OTP for ${phone}: ${otp}`);
-      }
-    }
+    await deliverAuthOtp({
+      phone: phone ? user.phone : undefined,
+      email: email ? user.email : undefined,
+      name: user.name,
+      otp
+    });
 
     res.json({ success: true, message: `OTP sent to ${email || phone}` });
   } catch (err) {
@@ -135,26 +255,26 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (!user.otp || user.otp !== otp) {
+    if (!user.otp || user.otp !== String(otp).trim()) {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
-    if (user.otpExpire < Date.now()) {
+    if (!user.otpExpire || user.otpExpire < new Date()) {
       return res.status(400).json({ success: false, message: 'OTP has expired' });
     }
 
     if (email) user.isEmailVerified = true;
     if (phone) user.isPhoneVerified = true;
-    user.otp = undefined;
-    user.otpExpire = undefined;
-    await user.save({ validateBeforeSave: false });
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
 
     const token = generateToken(user._id);
     res.json({
       success: true,
       message: 'Verification successful',
       token,
-      user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, isPhoneVerified: user.isPhoneVerified, isEmailVerified: user.isEmailVerified }
+      user: userResponse(user)
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -174,15 +294,14 @@ router.post('/login-otp', async (req, res) => {
     }
 
     const otp = user.generateOtp();
-    await user.save({ validateBeforeSave: false });
+    await user.save();
 
-    if (email) {
-      await sendOtpEmail(email, otp, user.name);
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Login OTP for ${phone}: ${otp}`);
-      }
-    }
+    await deliverAuthOtp({
+      phone: phone ? user.phone : undefined,
+      email: email ? user.email : undefined,
+      name: user.name,
+      otp
+    });
 
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (err) {

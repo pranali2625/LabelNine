@@ -59,7 +59,7 @@ const sendTemplateMessage = async (phone, templateName, bodyParams = []) => {
     return { skipped: true };
   }
 
-  const version = process.env.WHATSAPP_API_VERSION || 'v21.0';
+  const version = process.env.WHATSAPP_API_VERSION || 'v25.0';
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID.trim();
   const template = {
     name: templateName,
@@ -115,8 +115,74 @@ const sendOrderCancelledWhatsApp = async (phone, order, name) =>
     order.orderId
   ]);
 
+const sendRegistrationOtpWhatsApp = async (phone, name, otp) => {
+  const templateName = process.env.WHATSAPP_TEMPLATE_REGISTRATION_OTP;
+  const isAuthTemplate = process.env.WHATSAPP_OTP_TEMPLATE_STYLE !== 'utility';
+
+  if (isAuthTemplate) {
+    return sendAuthenticationOtp(phone, templateName, otp);
+  }
+
+  return sendTemplateMessage(phone, templateName, [name || 'Customer', otp]);
+};
+
+// Meta Authentication category — fixed body: "{{1}} is your verification code..."
+// Use "Copy code" in WhatsApp Manager (web apps — not zero-tap / one-tap).
+const sendAuthenticationOtp = async (phone, templateName, otp) => {
+  const to = normalizeIndianPhone(phone);
+  if (!to) {
+    console.warn('[WhatsApp] Invalid phone, skipping:', phone);
+    return { skipped: true };
+  }
+
+  if (!isWhatsAppEnabled()) {
+    console.log(`[WhatsApp dev] Auth OTP to ${to}: ${otp}`);
+    return { dev: true };
+  }
+
+  if (!templateName) {
+    console.warn('[WhatsApp] Template name missing, skipping send');
+    return { skipped: true };
+  }
+
+  const version = process.env.WHATSAPP_API_VERSION || 'v25.0';
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID.trim();
+  const code = String(otp);
+
+  const template = {
+    name: templateName,
+    language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en' },
+    components: [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: code }]
+      },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: code }]
+      }
+    ]
+  };
+
+  const { status, data } = await postToGraph(`/${version}/${phoneNumberId}/messages`, {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'template',
+    template
+  });
+
+  if (status >= 400 || data.error) {
+    throw new Error(data.error?.message || `WhatsApp API error ${status}`);
+  }
+
+  return data;
+};
+
 module.exports = {
   sendOrderConfirmationWhatsApp,
   sendOrderStatusWhatsApp,
-  sendOrderCancelledWhatsApp
+  sendOrderCancelledWhatsApp,
+  sendRegistrationOtpWhatsApp
 };

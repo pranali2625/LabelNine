@@ -1,0 +1,70 @@
+{
+  "name": "registration_otp",
+  "language": "en",
+  "category": "AUTHENTICATION",
+  "description": "Label Nine web app OTP — use Copy code in WhatsApp Manager (NOT zero-tap / one-tap; those require a native Android app).",
+  "env_variables": {
+    "WHATSAPP_TEMPLATE_REGISTRATION_OTP": "your_template_name_from_meta",
+    "WHATSAPP_OTP_TEMPLATE_STYLE": "authentication"
+  },
+  "meta_business_manager_ui": {
+    "category": "Authentication",
+    "delivery_method": "Copy code",
+    "do_not_use": [
+      "Zero-tap autofill — requires Android package name + 11-char app signature hash",
+      "One-tap autofill — requires native mobile app linked to WhatsApp"
+    ],
+    "steps": [
+      "WhatsApp Manager → Message templates → Create template",
+      "Category: Authentication",
+      "Select: Copy code (customer copies OTP and pastes on labelnine.in)",
+      "Leave App setup empty — not needed for web",
+      "Content is fixed by Meta: \"{{1}} is your verification code. For your security, do not share this code.\"",
+      "Note the template name Meta assigns (e.g. authentication_code_copy_code_button or your custom name)",
+      "Set WHATSAPP_TEMPLATE_REGISTRATION_OTP to that exact name in .env",
+      "Submit for approval (24–48 hours)"
+    ]
+  },
+  "fixed_body_by_meta": "{{1}} is your verification code. For your security, do not share this code.",
+  "body_variables": [
+    { "position": 1, "example": "482913", "maps_to": "6-digit OTP only — no customer name in auth templates" }
+  ],
+  "utility_alternative": {
+    "note": "If you prefer a custom message with customer name, create a Utility template instead and set WHATSAPP_OTP_TEMPLATE_STYLE=utility in .env",
+    "body": "Hi {{1}}, your Label Nine verification code is {{2}}. Valid for 10 minutes. Do not share this code with anyone.",
+    "body_variables": [
+      { "position": 1, "example": "Rahul", "maps_to": "customer name" },
+      { "position": 2, "example": "482913", "maps_to": "6-digit OTP" }
+    ]
+  },
+  "graph_api_send_example": {
+    "method": "POST",
+    "url": "https://graph.facebook.com/v25.0/{WHATSAPP_PHONE_NUMBER_ID}/messages",
+    "body": {
+      "messaging_product": "whatsapp",
+      "to": "919876543210",
+      "type": "template",
+      "template": {
+        "name": "registration_otp",
+        "language": { "code": "en" },
+        "components": [
+          {
+            "type": "body",
+            "parameters": [{ "type": "text", "text": "482913" }]
+          },
+          {
+            "type": "button",
+            "sub_type": "url",
+            "index": "0",
+            "parameters": [{ "type": "text", "text": "482913" }]
+          }
+        ]
+      }
+    }
+  },
+  "fast2sms_dlt": {
+    "env_variable": "FAST2SMS_TEMPLATE_REGISTRATION_OTP",
+    "template_text": "Dear {#var#}, your Label Nine verification code is {#var#}. Valid for 10 minutes. Do not share. - Label Nine",
+    "variables": ["customer name", "OTP"]
+  }
+}

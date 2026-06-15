@@ -61,7 +61,8 @@ export function CartProvider({ children }) {
 
   const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
-  const shippingCost = cartTotal >= 499 ? 0 : 79
+  // const shippingCost = cartTotal >= 499 ? 0 : 79
+  const shippingCost = 0 // shipping disabled for now
   const tax = Math.round(cartTotal * 0.05)
   const orderTotal = cartTotal + shippingCost + tax
 

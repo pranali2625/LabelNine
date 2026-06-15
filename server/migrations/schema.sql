@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   tax_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   total_amount DECIMAL(10, 2) NOT NULL,
-  payment_method ENUM('UPI', 'Card', 'NetBanking', 'Wallet', 'COD') NOT NULL DEFAULT 'UPI',
+  payment_method ENUM('UPI', 'Card', 'NetBanking', 'Wallet', 'COD', 'RAZORPAY') NOT NULL DEFAULT 'UPI',
   razorpay_order_id VARCHAR(255),
   razorpay_payment_id VARCHAR(255),
   razorpay_signature VARCHAR(255),
