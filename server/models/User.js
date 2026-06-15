@@ -34,7 +34,13 @@ class User {
   }
 
   async matchPassword(enteredPassword) {
-    return bcrypt.compare(enteredPassword, this.password);
+    const hash = Buffer.isBuffer(this.password)
+      ? this.password.toString('utf8')
+      : this.password;
+    if (typeof hash !== 'string' || !hash.startsWith('$2')) {
+      return false;
+    }
+    return bcrypt.compare(enteredPassword, hash);
   }
 
   generateOtp() {

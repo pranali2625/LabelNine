@@ -16,8 +16,17 @@ function getAdminCredentials() {
 
 async function ensureAdmin() {
   const { email, password } = getAdminCredentials();
-  const existing = await User.findOne({ email });
-  if (existing) return { created: false, email };
+  const existing = await User.findOne({ email }, '+password');
+  if (existing) {
+    const hash = existing.password;
+    const hasValidHash = typeof hash === 'string' && hash.startsWith('$2');
+    if (!hasValidHash) {
+      await existing._savePassword(password);
+      console.log(`Admin password repaired for ${email}`);
+      return { created: false, email, repaired: true };
+    }
+    return { created: false, email, repaired: false };
+  }
 
   await User.create({
     name: 'Label Nine Admin',
