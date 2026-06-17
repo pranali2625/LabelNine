@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Package, X, Check } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, X, Check, ImagePlus, Trash } from 'lucide-react'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 
@@ -63,6 +63,19 @@ export default function AdminProducts() {
       images[index] = { url: value }
       return { ...prev, images }
     })
+  }
+
+  const addImage = () => {
+    setForm(prev => ({ ...prev, images: [...prev.images, { url: '' }] }))
+  }
+
+  const removeImage = (index) => {
+    setForm(prev => ({
+      ...prev,
+      images: prev.images.length > 1
+        ? prev.images.filter((_, i) => i !== index)
+        : [{ url: '' }]
+    }))
   }
 
   const handleSave = async () => {
@@ -245,8 +258,45 @@ export default function AdminProducts() {
                     <textarea name="description" value={form.description} onChange={handleChange} rows={3} className="w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black resize-none" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">IMAGE URL</label>
-                    <input value={form.images[0]?.url || ''} onChange={e => handleImageChange(0, e.target.value)} placeholder="https://..." className="w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black" />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-semibold tracking-wider text-gray-600">PRODUCT IMAGES</label>
+                      <button
+                        type="button"
+                        onClick={addImage}
+                        className="flex items-center gap-1 text-xs text-gray-600 hover:text-black transition-colors"
+                      >
+                        <ImagePlus className="w-3.5 h-3.5" /> Add image
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {form.images.map((img, index) => (
+                        <div key={index} className="flex gap-2 items-start">
+                          {img.url && (
+                            <img
+                              src={img.url}
+                              alt=""
+                              className="w-12 h-16 object-cover bg-gray-100 flex-shrink-0 border border-gray-200"
+                              onError={(e) => { e.target.style.display = 'none' }}
+                            />
+                          )}
+                          <input
+                            value={img.url}
+                            onChange={e => handleImageChange(index, e.target.value)}
+                            placeholder="https://..."
+                            className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Remove image"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">First image is used as the cover. Add multiple URLs for a slideshow.</p>
                   </div>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">

@@ -24,7 +24,7 @@ export default function Register() {
       toast.error('Password must be at least 6 characters')
       return
     }
-    if (form.phone && !/^[6-9]\d{9}$/.test(form.phone)) {
+    if (!/^[6-9]\d{9}$/.test(form.phone)) {
       toast.error('Please enter a valid 10-digit mobile number')
       return
     }
@@ -32,7 +32,7 @@ export default function Register() {
     const result = await register({
       name: form.name,
       email: form.email,
-      phone: form.phone || undefined,
+      phone: form.phone,
       password: form.password
     })
 
@@ -60,8 +60,8 @@ export default function Register() {
               <input name="email" type="email" value={form.email} onChange={onChange} required placeholder="email@example.com" className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" />
             </div>
             <div>
-              <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">MOBILE NUMBER</label>
-              <input name="phone" value={form.phone} onChange={onChange} maxLength={10} placeholder="10-digit mobile number (optional)" className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" />
+              <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">MOBILE NUMBER *</label>
+              <input name="phone" value={form.phone} onChange={onChange} required maxLength={10} placeholder="10-digit mobile number" className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" />
             </div>
             <div>
               <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">PASSWORD *</label>

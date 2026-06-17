@@ -3,7 +3,6 @@ const router = express.Router();
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const { deliverRegistrationOtp, deliverAuthOtp } = require('../utils/otpDelivery');
-const { sendPasswordResetEmail } = require('../utils/email');
 
 const userResponse = (user) => ({
   _id: user._id,
@@ -34,10 +33,10 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !phone || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide name, email, and password'
+        message: 'Please provide name, email, mobile number, and password'
       });
     }
 
@@ -45,7 +44,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+    if (!/^[6-9]\d{9}$/.test(phone)) {
       return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
     }
 
@@ -70,63 +69,39 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @route POST /api/auth/forgot-password
-// @desc  Send password reset link to email
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (user?.email) {
-      const resetToken = user.generatePasswordResetToken();
-      await user.savePasswordResetToken();
-
-      const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
-      try {
-        await sendPasswordResetEmail(user.email, resetUrl, user.name);
-      } catch (err) {
-        console.error('[Forgot password] Email failed:', err.message);
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Forgot password dev] Reset link for ${user.email}: ${resetUrl}`);
-        }
-      }
-    }
-
-    res.json({
-      success: true,
-      message: 'If an account exists with that email, a reset link has been sent.'
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Failed to process request' });
-  }
-});
-
 // @route POST /api/auth/reset-password
-// @desc  Reset password using token from email
+// @desc  Reset password by verifying registered email + mobile (no OTP/email required)
 router.post('/reset-password', async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const { email, phone, password } = req.body;
 
-    if (!token || !password) {
-      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    if (!email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, mobile number, and new password are required'
+      });
+    }
+
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findByResetToken(token);
+    const user = await User.findOne({ email: email.toLowerCase(), phone });
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired reset link' });
+      return res.status(400).json({
+        success: false,
+        message: 'We could not verify your account. Make sure your email and mobile match what you used when registering.'
+      });
     }
 
     await user._savePassword(password);
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
     await user.clearPasswordResetToken();
 
     res.json({ success: true, message: 'Password updated successfully. You can now sign in.' });

@@ -199,6 +199,9 @@ class User {
         return key === 'email' ? 'LOWER(email) = ?' : 'phone = ?';
       });
       sql += ` AND (${parts.join(' OR ')})`;
+    } else if (conditions.email && conditions.phone) {
+      sql += ' AND LOWER(email) = ? AND phone = ?';
+      params.push(String(conditions.email).toLowerCase(), conditions.phone);
     } else if (conditions.email) {
       sql += ' AND LOWER(email) = ?';
       params.push(String(conditions.email).toLowerCase());

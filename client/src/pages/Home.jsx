@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Truck, Shield, RotateCcw } from 'lucide-react'
 import api from '../services/api'
+import ImageSlideshow from '../components/ImageSlideshow'
 
 const VARIETIES = [
   'Classic White Formal',
@@ -174,15 +175,17 @@ export default function Home() {
 function ProductCard({ product }) {
   return (
     <Link to={`/shop/${product.slug || product._id}`} className="group">
-      <div className="relative overflow-hidden bg-gray-100 aspect-[3/4] mb-3">
-        <img
-          src={product.images[0]?.url || 'https://placehold.co/400x530/e5e5e5/999?text=LABEL+NINE'}
+      <div className="relative mb-3">
+        <ImageSlideshow
+          images={product.images}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
+          hoverPlay
+          showDots
+          showArrows={false}
+          imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         {product.discountedPrice && (
-          <span className="absolute top-2 left-2 bg-black text-white text-xs px-2 py-1 font-medium">
+          <span className="absolute top-2 left-2 bg-black text-white text-xs px-2 py-1 font-medium z-10">
             {Math.round((1 - product.discountedPrice / product.price) * 100)}% OFF
           </span>
         )}

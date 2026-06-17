@@ -49,25 +49,10 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const requestPasswordReset = async (email) => {
+  const resetPassword = async ({ email, phone, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/forgot-password', { email })
-      toast.success(data.message || 'Reset link sent!')
-      return { success: true }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send reset link'
-      toast.error(msg)
-      return { success: false }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const resetPassword = async ({ token, password }) => {
-    setLoading(true)
-    try {
-      const { data } = await api.post('/auth/reset-password', { token, password })
+      const { data } = await api.post('/auth/reset-password', { email, phone, password })
       toast.success(data.message || 'Password updated!')
       return { success: true }
     } catch (err) {
@@ -99,7 +84,6 @@ export function AuthProvider({ children }) {
         loading,
         register,
         login,
-        requestPasswordReset,
         resetPassword,
         logout,
         updateUser,

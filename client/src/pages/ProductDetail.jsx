@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingBag } from 'lucide-react'
+import ImageSlideshow from '../components/ImageSlideshow'
 import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
@@ -15,7 +16,6 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedSize, setSelectedSize] = useState('')
-  const [imgIndex, setImgIndex] = useState(0)
 
   useEffect(() => {
     api.get(`/products/${id}`)
@@ -66,35 +66,13 @@ export default function ProductDetail() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
-        {/* Images */}
-        <div>
-          <div className="relative bg-gray-100 aspect-[3/4] overflow-hidden">
-            <img
-              src={product.images[imgIndex]?.url || 'https://placehold.co/600x800/e5e5e5/999?text=LABEL+NINE'}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-            {product.images.length > 1 && (
-              <>
-                <button onClick={() => setImgIndex(i => Math.max(0, i - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 hover:bg-white transition-colors">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button onClick={() => setImgIndex(i => Math.min(product.images.length - 1, i + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 hover:bg-white transition-colors">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-          {product.images.length > 1 && (
-            <div className="flex gap-2 mt-3">
-              {product.images.map((img, i) => (
-                <button key={i} onClick={() => setImgIndex(i)} className={`w-16 h-20 overflow-hidden border-2 ${imgIndex === i ? 'border-black' : 'border-transparent'}`}>
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ImageSlideshow
+          images={product.images}
+          alt={product.name}
+          autoPlay
+          showThumbnails
+          showDots
+        />
 
         {/* Details */}
         <div className="pt-2">
@@ -132,9 +110,6 @@ export default function ProductDetail() {
                   `}
                 >
                   {size}
-                  {stock > 0 && stock <= 5 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center">{stock}</span>
-                  )}
                 </button>
               ))}
             </div>

@@ -109,7 +109,10 @@ class Product {
 
   static async _loadRelations(productId) {
     const [[images], [sizes]] = await Promise.all([
-      pool.query('SELECT url, public_id FROM product_images WHERE product_id = ?', [productId]),
+      pool.query(
+        'SELECT url, public_id FROM product_images WHERE product_id = ? ORDER BY id ASC',
+        [productId]
+      ),
       pool.query('SELECT size, stock FROM product_sizes WHERE product_id = ?', [productId])
     ]);
     return { images, sizes };
