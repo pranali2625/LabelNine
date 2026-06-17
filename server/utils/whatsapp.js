@@ -83,7 +83,12 @@ const sendTemplateMessage = async (phone, templateName, bodyParams = []) => {
   });
 
   if (status >= 400 || data.error) {
-    throw new Error(data.error?.message || `WhatsApp API error ${status}`);
+    const err = data.error || {};
+    const hint =
+      err.code === 190
+        ? ' — WHATSAPP_ACCESS_TOKEN expired or invalid; generate a new permanent token in Meta Business Suite → WhatsApp → API Setup'
+        : '';
+    throw new Error((err.message || `WhatsApp API error ${status}`) + hint);
   }
 
   return data;
@@ -174,7 +179,12 @@ const sendAuthenticationOtp = async (phone, templateName, otp) => {
   });
 
   if (status >= 400 || data.error) {
-    throw new Error(data.error?.message || `WhatsApp API error ${status}`);
+    const err = data.error || {};
+    const hint =
+      err.code === 190
+        ? ' — WHATSAPP_ACCESS_TOKEN expired or invalid; generate a new permanent token in Meta Business Suite → WhatsApp → API Setup'
+        : '';
+    throw new Error((err.message || `WhatsApp API error ${status}`) + hint);
   }
 
   return data;

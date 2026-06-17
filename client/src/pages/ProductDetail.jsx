@@ -5,6 +5,8 @@ import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
 
+const AVAILABLE_SIZES = ['M', 'L', 'XL', 'XXL']
+
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -117,7 +119,9 @@ export default function ProductDetail() {
               <h3 className="text-sm font-semibold tracking-wider">SELECT SIZE</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {product.sizes.map(({ size, stock }) => (
+              {product.sizes
+                .filter(({ size }) => AVAILABLE_SIZES.includes(size))
+                .map(({ size, stock }) => (
                 <button
                   key={size}
                   disabled={stock === 0}

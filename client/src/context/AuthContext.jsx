@@ -17,51 +17,19 @@ export function AuthProvider({ children }) {
     setUser(userData)
   }
 
-  const sendRegisterOtp = async ({ name, email, phone, password }) => {
+  const register = async ({ name, email, phone, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/register/send-otp', { name, email, phone, password })
-      toast.success(data.message || 'OTP sent!')
-      return {
-        success: true,
-        verifyChannel: data.verifyChannel,
-        destination: data.destination,
-        destinations: data.destinations
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send OTP'
-      toast.error(msg)
-      return { success: false, message: msg }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const verifyRegisterOtp = async ({ email, phone, otp }) => {
-    setLoading(true)
-    try {
-      const { data } = await api.post('/auth/register/verify', { email, phone, otp })
+      const { data } = await api.post('/auth/register', { name, email, phone, password })
       saveAuth(data.token, data.user)
       toast.success('Account created!')
       return { success: true, user: data.user }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Verification failed'
+      const msg = err.response?.data?.message || 'Registration failed'
       toast.error(msg)
       return { success: false, message: msg }
     } finally {
       setLoading(false)
-    }
-  }
-
-  const resendRegisterOtp = async ({ email, phone }) => {
-    try {
-      const { data } = await api.post('/auth/register/resend-otp', { email, phone })
-      toast.success(data.message || 'OTP resent!')
-      return { success: true }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to resend OTP'
-      toast.error(msg)
-      return { success: false }
     }
   }
 
@@ -81,15 +49,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const loginWithOtp = async ({ phone, email, otp }) => {
+  const requestPasswordReset = async (email) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/verify-otp', { phone, email, otp })
-      saveAuth(data.token, data.user)
-      toast.success('Login successful!')
-      return { success: true, user: data.user }
+      const { data } = await api.post('/auth/forgot-password', { email })
+      toast.success(data.message || 'Reset link sent!')
+      return { success: true }
     } catch (err) {
-      const msg = err.response?.data?.message || 'OTP verification failed'
+      const msg = err.response?.data?.message || 'Failed to send reset link'
       toast.error(msg)
       return { success: false }
     } finally {
@@ -97,15 +64,18 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const sendOtp = async ({ phone, email }) => {
+  const resetPassword = async ({ token, password }) => {
+    setLoading(true)
     try {
-      await api.post('/auth/login-otp', { phone, email })
-      toast.success('OTP sent!')
+      const { data } = await api.post('/auth/reset-password', { token, password })
+      toast.success(data.message || 'Password updated!')
       return { success: true }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send OTP'
+      const msg = err.response?.data?.message || 'Failed to reset password'
       toast.error(msg)
       return { success: false }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -127,12 +97,10 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
-        sendRegisterOtp,
-        verifyRegisterOtp,
-        resendRegisterOtp,
+        register,
         login,
-        loginWithOtp,
-        sendOtp,
+        requestPasswordReset,
+        resetPassword,
         logout,
         updateUser,
         isAdmin: user?.role === 'admin'

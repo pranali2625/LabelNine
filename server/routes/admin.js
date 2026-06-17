@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const { protect, adminOnly } = require('../middleware/auth');
 const { notifyOrderStatus } = require('../utils/orderNotifications');
+const { restoreOrderStock } = require('../utils/orderStock');
 
 // All admin routes require authentication + admin role
 router.use(protect, adminOnly);
@@ -91,6 +92,7 @@ router.patch('/orders/:orderId/status', async (req, res) => {
     const order = await Order.findOne({ orderId: req.params.orderId });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+    const previousStatus = order.orderStatus;
     order.orderStatus = status;
     order.trackingHistory.push({
       status,
@@ -101,6 +103,14 @@ router.patch('/orders/:orderId/status', async (req, res) => {
 
     if (status === 'delivered') {
       order.deliveredAt = new Date();
+      if (order.paymentInfo?.method === 'COD' && order.paymentInfo.status === 'pending') {
+        order.paymentInfo.status = 'paid';
+        order.paymentInfo.paidAt = new Date();
+      }
+    }
+
+    if (status === 'cancelled' && previousStatus !== 'cancelled') {
+      await restoreOrderStock(order.items);
     }
 
     await order.save();

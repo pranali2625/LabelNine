@@ -139,6 +139,9 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
 router.patch('/:id/stock', protect, adminOnly, async (req, res) => {
   try {
     const { sizes } = req.body; // [{ size, stock }]
+    if (!Array.isArray(sizes) || sizes.length === 0) {
+      return res.status(400).json({ success: false, message: 'sizes array is required' });
+    }
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });

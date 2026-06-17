@@ -75,6 +75,14 @@ router.post('/verify', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    if (order.paymentInfo.status === 'paid') {
+      return res.json({
+        success: true,
+        message: 'Payment already verified',
+        order
+      });
+    }
+
     order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
     order.paymentInfo.razorpaySignature = razorpay_signature;
     order.paymentInfo.status = 'paid';
@@ -116,6 +124,8 @@ async function webhookHandler(req, res) {
       if (expectedSig !== signature) {
         return res.status(400).json({ error: 'Invalid webhook signature' });
       }
+    } else if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
     const event = JSON.parse(req.body);
@@ -125,6 +135,11 @@ async function webhookHandler(req, res) {
       const orderId = payment.notes?.orderId;
 
       if (orderId) {
+        const existing = await Order.findOne({ orderId });
+        if (existing?.paymentInfo?.status === 'paid') {
+          return res.json({ received: true });
+        }
+
         const order = await Order.findOneAndUpdate(
           { orderId },
           {

@@ -4,21 +4,10 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import { openRazorpayCheckout } from '../utils/razorpay'
 import { Banknote, CreditCard, Smartphone, Truck } from 'lucide-react'
 
 const STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry']
-
-const loadRazorpay = () => new Promise((resolve) => {
-  if (window.Razorpay) {
-    resolve(true)
-    return
-  }
-  const script = document.createElement('script')
-  script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-  script.onload = () => resolve(true)
-  script.onerror = () => resolve(false)
-  document.body.appendChild(script)
-})
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -35,53 +24,17 @@ export default function Checkout() {
 
   const handleAddressChange = (e) => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
-  const openRazorpayCheckout = async (order) => {
-    const loaded = await loadRazorpay()
-    if (!loaded) {
-      toast.error('Payment gateway failed to load. Please try again.')
-      navigate(`/account/orders/${order.orderId}`)
-      return
-    }
-
-    const { data: payData } = await api.post('/payments/create-order', { orderId: order.orderId })
-
-    const rzp = new window.Razorpay({
-      key: payData.keyId,
-      amount: payData.amount,
-      currency: payData.currency,
-      name: 'Label Nine',
-      description: `Order ${order.orderId}`,
-      order_id: payData.razorpayOrderId,
-      prefill: {
-        name: address.name,
-        contact: address.phone,
-        email: user?.email || ''
+  const startRazorpay = async (order) => {
+    await openRazorpayCheckout({
+      order,
+      user,
+      shippingAddress: address,
+      onSuccess: () => {
+        clearCart()
+        navigate(`/order-success/${order.orderId}`)
       },
-      theme: { color: '#000000' },
-      handler: async (response) => {
-        try {
-          await api.post('/payments/verify', {
-            orderId: order.orderId,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
-          })
-          clearCart()
-          navigate(`/order-success/${order.orderId}`)
-        } catch (err) {
-          toast.error(err.response?.data?.message || 'Payment verification failed')
-          navigate(`/account/orders/${order.orderId}`)
-        }
-      },
-      modal: {
-        ondismiss: () => {
-          toast.error('Payment cancelled. Your order is saved — you can retry from order details.')
-          navigate(`/account/orders/${order.orderId}`)
-        }
-      }
+      onDismiss: () => navigate(`/account/orders/${order.orderId}`)
     })
-
-    rzp.open()
   }
 
   const handlePlaceOrder = async (e) => {
@@ -110,7 +63,7 @@ export default function Checkout() {
 
       if (paymentMethod === 'RAZORPAY') {
         setLoading(false)
-        await openRazorpayCheckout(order)
+        await startRazorpay(order)
         return
       }
 

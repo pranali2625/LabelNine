@@ -2,8 +2,6 @@
  * Local dev entry: starts embedded MySQL (no system install required),
  * seeds the database, then boots the API server.
  */
-const path = require('path');
-const { execSync } = require('child_process');
 const { createDB } = require('mysql-memory-server');
 
 async function main() {
@@ -15,25 +13,54 @@ async function main() {
     logLevel: 'WARN'
   });
 
+  process.env.EMBEDDED_MYSQL = '1';
   process.env.DB_HOST = '127.0.0.1';
   process.env.DB_PORT = String(db.port);
   process.env.DB_USER = db.username;
   process.env.DB_PASSWORD = 'dev';
   process.env.DB_NAME = db.dbName;
-  delete process.env.DB_SOCKET;
+  // Keep empty so server/.env cannot restore production DB_SOCKET on require('./index.js')
+  process.env.DB_SOCKET = '';
   process.env.DATABASE_URL = `mysql://${db.username}:@127.0.0.1:${db.port}/${db.dbName}`;
 
-  console.log(`Embedded MySQL ready on 127.0.0.1:${db.port}`);
+  console.log(`Embedded MySQL ready on 127.0.0.1:${db.port} (local dev database — separate from production)`);
 
-  const serverDir = __dirname;
   try {
-    execSync('node seed.js', {
-      stdio: 'inherit',
-      cwd: serverDir,
-      env: process.env
-    });
-  } catch {
-    console.warn('Seed skipped or failed — continuing with existing data');
+    const { pool, ensureSchema } = require('./config/db');
+    const { initializeDatabase } = require('./utils/seedDatabase');
+    const {
+      getSnapshotSource,
+      loadSnapshotJson,
+      importSnapshot,
+      importSqlFile,
+      countSnapshotRows
+    } = require('./utils/dbSnapshot');
+
+    await ensureSchema();
+
+    const snapshotSource = getSnapshotSource();
+    if (snapshotSource) {
+      try {
+        if (snapshotSource.type === 'json') {
+          const snapshot = loadSnapshotJson();
+          await importSnapshot(pool, snapshot);
+          console.log(
+            `Loaded production snapshot (${countSnapshotRows(snapshot)} rows, exported ${snapshot.exportedAt})`
+          );
+        } else {
+          await importSqlFile(pool, snapshotSource.path);
+          console.log(`Loaded production SQL snapshot from ${snapshotSource.path}`);
+        }
+        await initializeDatabase();
+      } catch (importErr) {
+        console.warn('Snapshot import failed — falling back to sample seed:', importErr.message);
+        await initializeDatabase();
+      }
+    } else {
+      await initializeDatabase();
+    }
+  } catch (err) {
+    console.warn('Dev seed skipped or failed — continuing with existing data:', err.message);
   }
 
   require('./index.js');

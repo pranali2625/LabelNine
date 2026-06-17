@@ -15,6 +15,8 @@ import OrderSuccess from './pages/OrderSuccess'
 import OrderTracking from './pages/OrderTracking'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Account from './pages/Account'
 import MyOrders from './pages/MyOrders'
 import OrderDetail from './pages/OrderDetail'
@@ -50,6 +52,8 @@ function App() {
             <Route path="track/:orderId" element={<OrderTracking />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
             <Route element={<ProtectedRoute />}>
               <Route path="checkout" element={<Checkout />} />
               <Route path="order-success/:orderId" element={<OrderSuccess />} />

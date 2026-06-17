@@ -11,6 +11,8 @@
     "postinstall": "npm run install:all",
     "start": "cd server && npm start",
     "seed": "cd server && npm run seed",
+    "db:pull": "cd server && npm run db:pull",
+    "db:import": "cd server && npm run db:import",
     "deploy": "node scripts/deploy.js"
   },
   "devDependencies": {

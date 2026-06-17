@@ -83,4 +83,26 @@ const sendOrderConfirmationEmail = async (email, order, name) => {
   return sendEmail({ to: email, subject: `Label Nine — Order #${order.orderId} Confirmed`, html });
 };
 
-module.exports = { sendEmail, sendOtpEmail, sendOrderConfirmationEmail };
+const sendPasswordResetEmail = async (email, resetUrl, name) => {
+  const html = `
+    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: auto; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden;">
+      <div style="background: #111; padding: 24px; text-align: center;">
+        <h1 style="color: #fff; font-size: 24px; letter-spacing: 4px; margin: 0;">LABEL NINE</h1>
+      </div>
+      <div style="padding: 32px;">
+        <p style="color: #333; font-size: 16px;">Hi ${name || 'there'},</p>
+        <p style="color: #555;">We received a request to reset your password. Click the button below to choose a new one:</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: 1px; padding: 14px 28px;">RESET PASSWORD</a>
+        </div>
+        <p style="color: #888; font-size: 13px;">This link expires in 1 hour. If you didn't request a reset, you can ignore this email.</p>
+      </div>
+      <div style="background: #f9f9f9; padding: 16px; text-align: center;">
+        <p style="color: #aaa; font-size: 12px; margin: 0;">© 2024 Label Nine. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+  return sendEmail({ to: email, subject: 'Label Nine — Reset Your Password', html });
+};
+
+module.exports = { sendEmail, sendOtpEmail, sendOrderConfirmationEmail, sendPasswordResetEmail };

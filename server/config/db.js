@@ -10,6 +10,10 @@ let pool;
 const DEFAULT_SOCKET = '/var/lib/mysql/mysql.sock';
 
 function getDbConfig() {
+  if (process.env.EMBEDDED_MYSQL === '1' && env('DATABASE_URL')) {
+    return env('DATABASE_URL');
+  }
+
   if (env('DATABASE_URL')) {
     return env('DATABASE_URL');
   }
@@ -87,15 +91,26 @@ async function applyMigrations() {
     "SHOW COLUMNS FROM orders LIKE 'payment_method'"
   );
   const columnType = columns[0]?.Type || '';
-  if (columnType.includes("'RAZORPAY'")) return;
+  if (!columnType.includes("'RAZORPAY'")) {
+    await db.query(`
+      ALTER TABLE orders
+      MODIFY COLUMN payment_method
+      ENUM('UPI', 'Card', 'NetBanking', 'Wallet', 'COD', 'RAZORPAY')
+      NOT NULL DEFAULT 'UPI'
+    `);
+    console.log('Migration applied: added RAZORPAY to orders.payment_method');
+  }
 
-  await db.query(`
-    ALTER TABLE orders
-    MODIFY COLUMN payment_method
-    ENUM('UPI', 'Card', 'NetBanking', 'Wallet', 'COD', 'RAZORPAY')
-    NOT NULL DEFAULT 'UPI'
-  `);
-  console.log('Migration applied: added RAZORPAY to orders.payment_method');
+  const [sizeCol] = await db.query("SHOW COLUMNS FROM product_sizes LIKE 'size'");
+  const sizeType = sizeCol[0]?.Type || '';
+  if (sizeType.includes("'XS'") || sizeType.includes("'S'")) {
+    await db.query("DELETE FROM product_sizes WHERE size IN ('XS', 'S')");
+    await db.query(`
+      ALTER TABLE product_sizes
+      MODIFY COLUMN size ENUM('M', 'L', 'XL', 'XXL') NOT NULL
+    `);
+    console.log('Migration applied: removed XS and S from product sizes');
+  }
 }
 
 module.exports = {

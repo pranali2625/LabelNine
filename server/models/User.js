@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { formatUser } = require('../utils/format');
@@ -59,6 +60,62 @@ class User {
     if (this.phone && !this.isPhoneVerified) return false;
     if (this.email && !this.isEmailVerified) return false;
     return Boolean(this.phone || this.email);
+  }
+
+  generatePasswordResetToken() {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    this.resetPasswordExpire = new Date(Date.now() + 60 * 60 * 1000);
+    return resetToken;
+  }
+
+  async savePasswordResetToken() {
+    await pool.query(
+      'UPDATE users SET reset_password_token=?, reset_password_expire=?, updated_at=NOW() WHERE id=?',
+      [this.resetPasswordToken, this.resetPasswordExpire, this.id]
+    );
+  }
+
+  async clearPasswordResetToken() {
+    this.resetPasswordToken = null;
+    this.resetPasswordExpire = null;
+    await pool.query(
+      'UPDATE users SET reset_password_token=NULL, reset_password_expire=NULL, updated_at=NOW() WHERE id=?',
+      [this.id]
+    );
+  }
+
+  static async findByResetToken(token) {
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+    const [rows] = await pool.query(
+      'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expire > NOW()',
+      [hashed]
+    );
+    return User._toUserInstance(rows[0], { excludePassword: true, excludeOtp: true });
+  }
+
+  static async registerSimple({ name, email, phone, password }) {
+    const normalizedEmail = email ? String(email).toLowerCase() : null;
+
+    const existing = await User.findOne({
+      $or: [
+        phone ? { phone } : null,
+        normalizedEmail ? { email: normalizedEmail } : null
+      ].filter(Boolean)
+    });
+
+    if (existing) {
+      throw new Error('User already exists with this email or phone');
+    }
+
+    return User.create({
+      name,
+      email: normalizedEmail,
+      phone: phone || null,
+      password,
+      isPhoneVerified: Boolean(phone),
+      isEmailVerified: Boolean(normalizedEmail)
+    });
   }
 
   static async upsertPendingRegistration({ name, email, phone, password }) {

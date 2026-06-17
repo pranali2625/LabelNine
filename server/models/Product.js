@@ -335,13 +335,21 @@ class Product {
     return Product.findById(productId);
   }
 
+  static async updateStock(productId, size, delta, conn) {
+    const db = conn || pool;
+    const [result] = await db.query(
+      delta < 0
+        ? 'UPDATE product_sizes SET stock = stock + ? WHERE product_id = ? AND size = ? AND stock >= ?'
+        : 'UPDATE product_sizes SET stock = stock + ? WHERE product_id = ? AND size = ?',
+      delta < 0 ? [delta, productId, size, Math.abs(delta)] : [delta, productId, size]
+    );
+    return result.affectedRows > 0;
+  }
+
   static async updateOne(filter, update) {
     if (update.$inc?.['sizes.$.stock'] !== undefined) {
       const delta = update.$inc['sizes.$.stock'];
-      await pool.query(
-        'UPDATE product_sizes SET stock = stock + ? WHERE product_id = ? AND size = ?',
-        [delta, filter._id, filter['sizes.size']]
-      );
+      await Product.updateStock(filter._id, filter['sizes.size'], delta);
     }
   }
 

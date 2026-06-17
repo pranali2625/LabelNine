@@ -2,13 +2,25 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const { pool } = require('../config/db');
 const { protect } = require('../middleware/auth');
 const { generateOrderId, calculatePrices } = require('../utils/helpers');
+const { restoreOrderStock, deductOrderStock } = require('../utils/orderStock');
 const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
+
+const findUserOrder = (id, userId) =>
+  Order.findOne({
+    $or: [
+      ...(id.match(/^\d+$/) ? [{ _id: id }] : []),
+      { orderId: id }
+    ],
+    user: userId
+  });
 
 // @route POST /api/orders
 // @desc  Place a new order
 router.post('/', protect, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { items, shippingAddress, paymentMethod = 'COD' } = req.body;
 
@@ -16,7 +28,6 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No items in order' });
     }
 
-    // Validate stock and build order items
     const orderItems = [];
     for (const item of items) {
       const product = await Product.findById(item.productId);
@@ -43,8 +54,9 @@ router.post('/', protect, async (req, res) => {
     }
 
     const { itemsPrice, shippingPrice, taxPrice, totalAmount } = calculatePrices(orderItems);
-
     const isCOD = paymentMethod === 'COD';
+
+    await conn.beginTransaction();
 
     const order = await Order.create({
       orderId: generateOrderId(),
@@ -57,7 +69,7 @@ router.post('/', protect, async (req, res) => {
       totalAmount,
       paymentInfo: { method: paymentMethod, status: 'pending' },
       ...(isCOD && { orderStatus: 'confirmed' })
-    });
+    }, conn);
 
     if (isCOD) {
       order.trackingHistory.push({
@@ -65,24 +77,25 @@ router.post('/', protect, async (req, res) => {
         message: 'Order confirmed. Pay cash on delivery.',
         timestamp: new Date()
       });
-      await order.save();
+      await order.save(conn);
     }
 
-    // Deduct stock
-    for (const item of orderItems) {
-      await Product.updateOne(
-        { _id: item.product, 'sizes.size': item.size },
-        { $inc: { 'sizes.$.stock': -item.quantity } }
-      );
-    }
+    await deductOrderStock(orderItems, conn);
+    await conn.commit();
+
+    const savedOrder = await Order.findOne({ orderId: order.orderId });
 
     if (isCOD) {
-      notifyOrderConfirmed(order, req.user._id);
+      notifyOrderConfirmed(savedOrder, req.user._id);
     }
 
-    res.status(201).json({ success: true, order });
+    res.status(201).json({ success: true, order: savedOrder });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    await conn.rollback();
+    const status = err.message?.includes('Insufficient stock') ? 400 : 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to place order' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -142,9 +155,20 @@ router.get('/:id', protect, async (req, res) => {
 // @desc  Cancel order (user)
 router.patch('/:id/cancel', protect, async (req, res) => {
   try {
-    const order = await Order.findOne({ orderId: req.params.id, user: req.user._id });
+    const order = await findUserOrder(req.params.id, req.user._id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.orderStatus === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Order is already cancelled' });
+    }
+
+    if (order.paymentInfo?.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Paid orders cannot be cancelled online. Please contact support for a refund.'
+      });
     }
 
     const cancellableStatuses = ['placed', 'confirmed'];
@@ -160,14 +184,7 @@ router.patch('/:id/cancel', protect, async (req, res) => {
       timestamp: new Date()
     });
 
-    // Restore stock
-    for (const item of order.items) {
-      await Product.updateOne(
-        { _id: item.product, 'sizes.size': item.size },
-        { $inc: { 'sizes.$.stock': item.quantity } }
-      );
-    }
-
+    await restoreOrderStock(order.items);
     await order.save();
     notifyOrderCancelled(order, req.user._id);
     res.json({ success: true, order });

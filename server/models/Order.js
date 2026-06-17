@@ -6,8 +6,9 @@ class Order {
     Object.assign(this, data);
   }
 
-  async save() {
-    await pool.query(
+  async save(conn) {
+    const db = conn || pool;
+    await db.query(
       `UPDATE orders SET order_status=?, payment_status=?, razorpay_order_id=?, razorpay_payment_id=?,
        razorpay_signature=?, paid_at=?, delivered_at=?, cancellation_reason=?, updated_at=NOW()
        WHERE id=?`,
@@ -26,7 +27,7 @@ class Order {
 
     for (const event of this.trackingHistory || []) {
       if (!event._id) {
-        await pool.query(
+        await db.query(
           'INSERT INTO order_tracking (order_id, status, message, location, tracked_at) VALUES (?, ?, ?, ?, ?)',
           [this.id, event.status, event.message, event.location || null, event.timestamp || new Date()]
         );
@@ -188,12 +189,13 @@ class Order {
     return rows[0].count;
   }
 
-  static async create(data) {
+  static async create(data, conn) {
+    const db = conn || pool;
     const addr = data.shippingAddress;
     const estimatedDelivery = new Date();
     estimatedDelivery.setDate(estimatedDelivery.getDate() + 6);
 
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO orders (
         order_id, user_id, shipping_name, shipping_phone, shipping_line1, shipping_line2,
         shipping_city, shipping_state, shipping_pincode, items_price, shipping_price, tax_price,
@@ -223,7 +225,7 @@ class Order {
     const orderDbId = result.insertId;
 
     for (const item of data.items) {
-      await pool.query(
+      await db.query(
         `INSERT INTO order_items (order_id, product_id, name, image, size, quantity, price)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -238,12 +240,12 @@ class Order {
       );
     }
 
-    await pool.query(
+    await db.query(
       'INSERT INTO order_tracking (order_id, status, message, tracked_at) VALUES (?, ?, ?, NOW())',
       [orderDbId, 'placed', 'Your order has been placed successfully']
     );
 
-    const [rows] = await pool.query('SELECT * FROM orders WHERE id = ?', [orderDbId]);
+    const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [orderDbId]);
     const formatted = await Order._formatRow(rows[0]);
     return new Order(formatted);
   }
@@ -251,7 +253,9 @@ class Order {
   static async aggregate(pipeline) {
     if (pipeline?.[0]?.$match?.['paymentInfo.status'] === 'paid') {
       const [rows] = await pool.query(
-        "SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE payment_status = 'paid'"
+        `SELECT COALESCE(SUM(total_amount), 0) as total FROM orders
+         WHERE payment_status = 'paid'
+            OR (payment_method = 'COD' AND order_status NOT IN ('cancelled', 'returned'))`
       );
       return [{ total: Number(rows[0].total) }];
     }

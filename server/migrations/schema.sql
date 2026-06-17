@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS product_images (
 CREATE TABLE IF NOT EXISTS product_sizes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
-  size ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL') NOT NULL,
+  size ENUM('M', 'L', 'XL', 'XXL') NOT NULL,
   stock INT NOT NULL DEFAULT 0,
   UNIQUE KEY unique_product_size (product_id, size),
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE

@@ -167,14 +167,15 @@ async function connectDatabase(retries = 5, delayMs = 3000) {
 
 async function start() {
   try {
+    const embedded = process.env.EMBEDDED_MYSQL === '1';
     const dbHost = env('DB_HOST') || 'localhost';
     const socket = env('DB_SOCKET') || '/var/lib/mysql/mysql.sock';
     const isLocalHost = dbHost === 'localhost' || dbHost === '127.0.0.1';
-    const useSocket = !!env('DB_SOCKET') || (isLocalHost && process.platform !== 'win32' && fs.existsSync(socket));
+    const useSocket = !embedded && !!env('DB_SOCKET') && (isLocalHost && process.platform !== 'win32' && fs.existsSync(socket));
 
     console.log('DB config:', {
-      mode: useSocket ? 'socket' : 'tcp',
-      host: useSocket ? (env('DB_SOCKET') || socket) : dbHost,
+      mode: embedded ? 'embedded' : useSocket ? 'socket' : 'tcp',
+      host: embedded ? `${dbHost}:${env('DB_PORT') || 3306}` : useSocket ? (env('DB_SOCKET') || socket) : dbHost,
       user: env('DB_USER') ? `${env('DB_USER').slice(0, 8)}...` : '(NOT SET)',
       database: env('DB_NAME') || '(NOT SET)',
       password: env('DB_PASSWORD') ? '(set)' : '(NOT SET)'

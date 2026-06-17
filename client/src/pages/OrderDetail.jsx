@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Package, MapPin, CheckCircle, XCircle } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import { useAuth } from '../context/AuthContext'
+import { openRazorpayCheckout } from '../utils/razorpay'
 
 const STATUS_COLORS = {
   placed: 'bg-blue-100 text-blue-700',
@@ -17,9 +19,11 @@ const STATUS_COLORS = {
 export default function OrderDetail() {
   const { orderId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
+  const [paying, setPaying] = useState(false)
 
   useEffect(() => {
     api.get(`/orders/${orderId}`)
@@ -46,6 +50,27 @@ export default function OrderDetail() {
   if (!order) return null
 
   const canCancel = ['placed', 'confirmed'].includes(order.orderStatus)
+    && order.paymentInfo?.status !== 'paid'
+  const canPay = order.paymentInfo?.method === 'RAZORPAY'
+    && order.paymentInfo?.status !== 'paid'
+    && order.orderStatus !== 'cancelled'
+
+  const handlePay = async () => {
+    setPaying(true)
+    try {
+      await openRazorpayCheckout({
+        order,
+        user,
+        shippingAddress: order.shippingAddress,
+        onSuccess: (updatedOrder) => {
+          setOrder(updatedOrder)
+          navigate(`/order-success/${order.orderId}`)
+        }
+      })
+    } finally {
+      setPaying(false)
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
@@ -137,8 +162,17 @@ export default function OrderDetail() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <Link to={`/track/${order.orderId}`} className="flex-1 text-center border border-gray-300 py-3 text-sm font-semibold hover:border-black transition-colors">
+        <div className="flex gap-3 flex-wrap">
+          {canPay && (
+            <button
+              onClick={handlePay}
+              disabled={paying}
+              className="flex-1 min-w-[140px] bg-black text-white py-3 text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-60"
+            >
+              {paying ? 'Opening payment...' : `PAY NOW • ₹${order.totalAmount}`}
+            </button>
+          )}
+          <Link to={`/track/${order.orderId}`} className="flex-1 min-w-[140px] text-center border border-gray-300 py-3 text-sm font-semibold hover:border-black transition-colors">
             TRACK ORDER
           </Link>
           {canCancel && (

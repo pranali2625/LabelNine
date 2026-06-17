@@ -13,7 +13,6 @@ module.exports = [
     isActive: true,
     images: [{ url: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=600' }],
     sizes: [
-      { size: 'S', stock: 20 },
       { size: 'M', stock: 30 },
       { size: 'L', stock: 25 },
       { size: 'XL', stock: 15 },
@@ -35,7 +34,6 @@ module.exports = [
     isActive: true,
     images: [{ url: 'https://images.unsplash.com/photo-1621072156002-e2fccdc0b176?w=600' }],
     sizes: [
-      { size: 'S', stock: 18 },
       { size: 'M', stock: 28 },
       { size: 'L', stock: 22 },
       { size: 'XL', stock: 12 },
@@ -57,7 +55,6 @@ module.exports = [
     isActive: true,
     images: [{ url: 'https://images.unsplash.com/photo-1607345366928-199ea26cfe3e?w=600' }],
     sizes: [
-      { size: 'S', stock: 25 },
       { size: 'M', stock: 35 },
       { size: 'L', stock: 20 },
       { size: 'XL', stock: 10 },
@@ -79,7 +76,6 @@ module.exports = [
     isActive: true,
     images: [{ url: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600' }],
     sizes: [
-      { size: 'S', stock: 15 },
       { size: 'M', stock: 20 },
       { size: 'L', stock: 20 },
       { size: 'XL', stock: 15 },
@@ -101,7 +97,6 @@ module.exports = [
     isActive: true,
     images: [{ url: 'https://images.unsplash.com/photo-1594938298603-c8148c4b4dce?w=600' }],
     sizes: [
-      { size: 'S', stock: 12 },
       { size: 'M', stock: 18 },
       { size: 'L', stock: 18 },
       { size: 'XL', stock: 10 },
