@@ -4,6 +4,8 @@ import { ArrowRight, Truck, Shield, RotateCcw } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
+const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
+
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
   'CASH ON DELIVERY',
@@ -18,24 +20,34 @@ const TRUST_BADGES = [
 ]
 
 export default function Home() {
-  const [featured, setFeatured] = useState([])
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/products?featured=true&limit=4', {
+    api.get('/products?limit=8', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
     })
-      .then(res => setFeatured(Array.isArray(res.data?.products) ? res.data.products : []))
+      .then(res => setProducts(Array.isArray(res.data?.products) ? res.data.products : []))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
+
+  const featured = products.filter((p) => p.isFeatured).slice(0, 4)
+  const displayFeatured = featured.length > 0 ? featured : products.slice(0, 4)
+
+  const heroImages = (() => {
+    const urls = products
+      .map((p) => p.images?.[0]?.url)
+      .filter(Boolean)
+    return urls.length > 0 ? urls : [HERO_FALLBACK]
+  })()
 
   return (
     <div>
       {/* Hero */}
       <section className="bg-black text-white min-h-[90vh] flex items-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent z-10" />
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400')] bg-cover bg-center opacity-40" />
+        <HeroBackground images={heroImages} />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-black/15 z-10" />
         <div className="relative z-20 max-w-7xl mx-auto px-6 py-24">
           <p className="text-amber-400 text-sm tracking-[0.4em] mb-4 font-medium">PREMIUM MEN'S SHIRTS</p>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight tracking-tight">
@@ -94,7 +106,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {featured.map(product => (
+            {displayFeatured.map(product => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
@@ -157,6 +169,37 @@ export default function Home() {
           VIEW COLLECTION <ArrowRight className="w-4 h-4" />
         </Link>
       </section>
+    </div>
+  )
+}
+
+function HeroBackground({ images }) {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    setIndex(0)
+  }, [images])
+
+  useEffect(() => {
+    if (images.length <= 1) return
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % images.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [images])
+
+  return (
+    <div className="absolute inset-0">
+      {images.map((url, i) => (
+        <div
+          key={`${url}-${i}`}
+          aria-hidden={i !== index}
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-[1500ms] ease-in-out ${
+            i === index ? 'opacity-70' : 'opacity-0'
+          }`}
+          style={{ backgroundImage: `url('${url}')` }}
+        />
+      ))}
     </div>
   )
 }
