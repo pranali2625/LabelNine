@@ -11,7 +11,7 @@ const STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisga
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, tax, orderTotal, clearCart } = useCart()
+  const { items, cartTotal, orderTotal, clearCart } = useCart()
   const { user } = useAuth()
 
   const [address, setAddress] = useState({
@@ -201,10 +201,12 @@ export default function Checkout() {
                   <span className="text-gray-600">Shipping</span>
                   <span className={shippingCost === 0 ? 'text-green-600' : ''}>{shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}</span>
                 </div> */}
+                {/* GST disabled for now
                 <div className="flex justify-between">
                   <span className="text-gray-600">GST</span>
                   <span>₹{tax}</span>
                 </div>
+                */}
                 <div className="flex justify-between font-bold text-base border-t pt-2">
                   <span>Total</span>
                   <span>₹{orderTotal}</span>

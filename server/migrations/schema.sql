@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS products (
     'Oxford Button-Down',
     'Slim Fit Solid',
     'Casual Linen',
+    'Cotton Linen',
     'Printed Heritage'
   ) NOT NULL,
   description TEXT NOT NULL,

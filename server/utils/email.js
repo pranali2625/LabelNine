@@ -1,4 +1,12 @@
 const nodemailer = require('nodemailer');
+const { SUPPORT_EMAIL, SUPPORT_PHONE_DISPLAY } = require('./contact');
+
+const emailFooter = `
+  <div style="background: #f9f9f9; padding: 16px; text-align: center;">
+    <p style="color: #888; font-size: 12px; margin: 0 0 8px;">Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color: #111;">${SUPPORT_EMAIL}</a> · ${SUPPORT_PHONE_DISPLAY}</p>
+    <p style="color: #aaa; font-size: 12px; margin: 0;">© 2026 Label Nine. All rights reserved.</p>
+  </div>
+`;
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -34,9 +42,7 @@ const sendOtpEmail = async (email, otp, name) => {
         </div>
         <p style="color: #888; font-size: 13px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
       </div>
-      <div style="background: #f9f9f9; padding: 16px; text-align: center;">
-        <p style="color: #aaa; font-size: 12px; margin: 0;">© 2024 Label Nine. All rights reserved.</p>
-      </div>
+      ${emailFooter}
     </div>
   `;
   return sendEmail({ to: email, subject: 'Label Nine — Your Verification OTP', html });
@@ -76,8 +82,10 @@ const sendOrderConfirmationEmail = async (email, order, name) => {
         </div>
         <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
         <p style="color: #555;">Estimated delivery: <strong>${new Date(order.estimatedDelivery).toDateString()}</strong></p>
-        <p style="color: #555;">Track your order at <a href="${process.env.CLIENT_URL}/track/${order.orderId}" style="color: #111;">labelnine.com</a></p>
+        <p style="color: #555;">Track your order at <a href="${process.env.CLIENT_URL}/track/${order.orderId}" style="color: #111;">labelnine.in</a></p>
+        <p style="color: #888; font-size: 13px;">Questions? Contact us at <a href="mailto:${SUPPORT_EMAIL}" style="color: #111;">${SUPPORT_EMAIL}</a> or ${SUPPORT_PHONE_DISPLAY}</p>
       </div>
+      ${emailFooter}
     </div>
   `;
   return sendEmail({ to: email, subject: `Label Nine — Order #${order.orderId} Confirmed`, html });
@@ -97,9 +105,7 @@ const sendPasswordResetEmail = async (email, resetUrl, name) => {
         </div>
         <p style="color: #888; font-size: 13px;">This link expires in 1 hour. If you didn't request a reset, you can ignore this email.</p>
       </div>
-      <div style="background: #f9f9f9; padding: 16px; text-align: center;">
-        <p style="color: #aaa; font-size: 12px; margin: 0;">© 2024 Label Nine. All rights reserved.</p>
-      </div>
+      ${emailFooter}
     </div>
   `;
   return sendEmail({ to: email, subject: 'Label Nine — Reset Your Password', html });

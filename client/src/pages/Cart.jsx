@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
 export default function Cart() {
-  const { items, updateQuantity, removeFromCart, cartTotal, tax, orderTotal, cartCount } = useCart()
+  const { items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -94,10 +94,12 @@ export default function Cart() {
                   {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                 </span>
               </div> */}
+              {/* GST disabled for now
               <div className="flex justify-between">
                 <span className="text-gray-600">GST (5%)</span>
                 <span>₹{tax}</span>
               </div>
+              */}
               <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-base">
                 <span>Total</span>
                 <span>₹{orderTotal}</span>

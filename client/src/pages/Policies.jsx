@@ -11,10 +11,9 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { SUPPORT_EMAIL as EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY as PHONE } from '../constants/contact'
 
 const BRAND = 'Label Nine'
-const EMAIL = 'hello@labelnine.com'
-const PHONE = '+91 00000 00000'
 
 function SectionCard({ icon: Icon, title, children }) {
   return (
@@ -176,7 +175,7 @@ export default function Policies() {
                 <a href={`mailto:${EMAIL}`} className="flex items-center gap-2 hover:text-black transition-colors">
                   <Mail className="w-4 h-4 shrink-0" /> {EMAIL}
                 </a>
-                <a href={`tel:${PHONE.replace(/\s/g, '')}`} className="flex items-center gap-2 hover:text-black transition-colors">
+                <a href={`tel:+91${SUPPORT_PHONE}`} className="flex items-center gap-2 hover:text-black transition-colors">
                   <Phone className="w-4 h-4 shrink-0" /> {PHONE}
                 </a>
               </div>
@@ -238,7 +237,7 @@ export default function Policies() {
                 <Mail className="w-4 h-4" /> {EMAIL}
               </a>
               <a
-                href={`tel:${PHONE.replace(/\s/g, '')}`}
+                href={`tel:+91${SUPPORT_PHONE}`}
                 className="inline-flex items-center justify-center gap-2 border border-gray-600 text-white px-6 py-3.5 text-sm font-semibold tracking-wide hover:border-amber-400 hover:text-amber-400 transition-colors"
               >
                 <Phone className="w-4 h-4" /> {PHONE}

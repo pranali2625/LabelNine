@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { SUPPORT_EMAIL as EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY as PHONE } from '../constants/contact'
 import {
   FileText,
   CheckCircle,
@@ -17,8 +18,6 @@ import {
 } from 'lucide-react'
 
 const BRAND = 'Label Nine'
-const EMAIL = 'hello@labelnine.com'
-const PHONE = '+91 00000 00000'
 const ADDRESS = 'Kolhapur, Maharashtra, India'
 
 function SectionCard({ icon: Icon, title, children }) {
@@ -173,7 +172,7 @@ export default function TermsOfService() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="w-4 h-4 shrink-0 text-amber-400" />
-                  <a href={`tel:${PHONE.replace(/\s/g, '')}`} className="hover:text-white transition-colors">{PHONE}</a>
+                  <a href={`tel:+91${SUPPORT_PHONE}`} className="hover:text-white transition-colors">{PHONE}</a>
                 </li>
                 <li className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
@@ -189,7 +188,7 @@ export default function TermsOfService() {
                 <Mail className="w-4 h-4" /> Email Us
               </a>
               <a
-                href={`tel:${PHONE.replace(/\s/g, '')}`}
+                href={`tel:+91${SUPPORT_PHONE}`}
                 className="inline-flex items-center justify-center gap-2 border border-gray-600 text-white px-6 py-3.5 text-sm font-semibold tracking-wide hover:border-amber-400 hover:text-amber-400 transition-colors"
               >
                 <Phone className="w-4 h-4" /> Call Us

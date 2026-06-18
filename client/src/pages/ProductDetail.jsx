@@ -91,7 +91,6 @@ export default function ProductDetail() {
               </>
             )}
           </div>
-          <p className="text-xs text-gray-500 mb-6">Inclusive of all taxes</p>
 
           {/* Size selection */}
           <div className="mb-6">

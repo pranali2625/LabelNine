@@ -111,6 +111,23 @@ async function applyMigrations() {
     `);
     console.log('Migration applied: removed XS and S from product sizes');
   }
+
+  const [varietyCol] = await db.query("SHOW COLUMNS FROM products LIKE 'variety'");
+  const varietyType = varietyCol[0]?.Type || '';
+  if (varietyType && !varietyType.includes("'Cotton Linen'")) {
+    await db.query(`
+      ALTER TABLE products
+      MODIFY COLUMN variety ENUM(
+        'Classic White Formal',
+        'Oxford Button-Down',
+        'Slim Fit Solid',
+        'Casual Linen',
+        'Cotton Linen',
+        'Printed Heritage'
+      ) NOT NULL
+    `);
+    console.log('Migration applied: added Cotton Linen product variety');
+  }
 }
 
 module.exports = {

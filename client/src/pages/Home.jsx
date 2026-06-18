@@ -6,6 +6,11 @@ import ImageSlideshow from '../components/ImageSlideshow'
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
 
+const CRAFT_IMAGES = {
+  threads: 'https://images.unsplash.com/photo-1770910195240-ddec777b77f6?w=600&q=80',
+  stitches: 'https://images.unsplash.com/photo-1742674537189-415cfb85ce05?w=600&q=80',
+}
+
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
   'CASH ON DELIVERY',
@@ -131,8 +136,8 @@ export default function Home() {
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="aspect-[3/4] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=400')" }} />
-              <div className="aspect-[3/4] bg-cover bg-center mt-8" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1607345366928-199ea26cfe3e?w=400')" }} />
+              <CraftImage src={CRAFT_IMAGES.threads} alt="Quality sewing threads" />
+              <CraftImage src={CRAFT_IMAGES.stitches} alt="Precision garment stitching" className="mt-8" />
             </div>
           </div>
         </div>
@@ -169,6 +174,28 @@ export default function Home() {
           VIEW COLLECTION <ArrowRight className="w-4 h-4" />
         </Link>
       </section>
+    </div>
+  )
+}
+
+function CraftImage({ src, alt, className = '' }) {
+  const [imgSrc, setImgSrc] = useState(src)
+
+  useEffect(() => {
+    setImgSrc(src)
+  }, [src])
+
+  return (
+    <div className={`aspect-[3/4] overflow-hidden bg-gray-100 ${className}`}>
+      <img
+        src={imgSrc}
+        alt={alt}
+        className="w-full h-full object-cover"
+        loading="lazy"
+        onError={() => {
+          if (imgSrc !== HERO_FALLBACK) setImgSrc(HERO_FALLBACK)
+        }}
+      />
     </div>
   )
 }

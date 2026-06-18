@@ -1,0 +1,5 @@
+const SUPPORT_EMAIL = 'support@labelnine.in';
+const SUPPORT_PHONE = '7410747900';
+const SUPPORT_PHONE_DISPLAY = '+91 74107 47900';
+
+module.exports = { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY };
