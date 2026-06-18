@@ -114,7 +114,6 @@ export default function Policies() {
           <SectionCard icon={Truck} title="Shipping Charges">
             <BulletList items={[
               'Shipping charges, if applicable, will be displayed at checkout before payment.',
-              'Free shipping may be offered on eligible orders from time to time.'
             ]} />
           </SectionCard>
 

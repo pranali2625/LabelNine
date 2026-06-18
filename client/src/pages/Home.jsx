@@ -4,12 +4,17 @@ import { ArrowRight, Truck, Shield, RotateCcw } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
-const VARIETIES = [
-  'Classic White Formal',
-  'Oxford Button-Down',
-  'Slim Fit Solid',
-  'Casual Linen',
-  'Printed Heritage'
+const PROMO_HIGHLIGHTS = [
+  'PREMIUM MEN\'S SHIRTS',
+  'CASH ON DELIVERY',
+  'EASY 7-DAY RETURNS',
+  'CRAFTED WITH CARE',
+]
+
+const TRUST_BADGES = [
+  { Icon: Truck, title: 'PAN INDIA DELIVERY', subtitle: 'Delivered to your doorstep' },
+  { Icon: Shield, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
+  { Icon: RotateCcw, title: 'EASY RETURNS', subtitle: '7-day hassle-free returns' },
 ]
 
 export default function Home() {
@@ -38,7 +43,7 @@ export default function Home() {
             <span className="text-amber-400">PURPOSE.</span>
           </h1>
           <p className="text-gray-300 text-lg md:text-xl mb-10 max-w-lg leading-relaxed">
-            Five handcrafted shirt varieties, each designed for the modern Indian man who values quality over quantity.
+            Premium shirts crafted for the modern Indian man who values quality, comfort, and timeless style.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link to="/shop" className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 font-semibold tracking-wide hover:bg-amber-400 transition-colors duration-200">
@@ -51,13 +56,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Varieties strip */}
-      <section className="bg-amber-400 py-4 overflow-x-auto">
-        <div className="flex items-center gap-8 px-6 min-w-max mx-auto">
-          {VARIETIES.map((v, i) => (
-            <Link key={v} to={`/shop?variety=${encodeURIComponent(v)}`} className="text-black text-xs font-semibold tracking-[0.25em] hover:underline whitespace-nowrap">
-              {v.toUpperCase()}
-            </Link>
+      {/* Promo strip */}
+      <section className="bg-amber-400 py-3.5 md:py-4 overflow-hidden">
+        <div className="marquee-track items-center">
+          {[...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS].map((text, i) => (
+            <span
+              key={`${text}-${i}`}
+              className="text-black text-xs font-semibold tracking-[0.2em] whitespace-nowrap px-14 md:px-20 flex-shrink-0"
+            >
+              {text}
+            </span>
           ))}
         </div>
       </section>
@@ -101,10 +109,10 @@ export default function Home() {
               <p className="text-xs tracking-[0.3em] text-gray-500 mb-2">OUR STORY</p>
               <h2 className="text-3xl font-bold mb-6 tracking-tight">CRAFTED FOR THE<br />MODERN MAN</h2>
               <p className="text-gray-600 leading-relaxed mb-4">
-                Label Nine was born from a simple belief — that a great shirt is the foundation of every great outfit. We create exactly five varieties of men's shirts, each perfected over time, each serving a distinct purpose in your wardrobe.
+                Label Nine was born from a simple belief — that a great shirt is the foundation of every great outfit. We focus on quality fabrics, clean fits, and shirts you can wear with confidence.
               </p>
               <p className="text-gray-600 leading-relaxed mb-8">
-                From crisp formal whites to breathable linen for Indian summers, every Label Nine shirt is crafted with premium fabrics and meticulous attention to detail.
+                Every Label Nine shirt is made with premium materials and careful attention to detail, designed for work, weekends, and everything in between.
               </p>
               <Link to="/shop" className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 font-semibold text-sm tracking-wide hover:bg-gray-800 transition-colors">
                 EXPLORE COLLECTION <ArrowRight className="w-4 h-4" />
@@ -121,52 +129,33 @@ export default function Home() {
       {/* Trust badges */}
       <section className="border-t border-b border-gray-200 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <Truck className="w-8 h-8" />
-              <div>
-                <p className="font-semibold text-sm tracking-wide">FREE HOME DELIVERY</p>
-                <p className="text-gray-500 text-sm">On orders above ₹499</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {TRUST_BADGES.map((badge) => (
+              <div key={badge.title} className="flex items-center gap-3 justify-center sm:justify-start">
+                <badge.Icon className="w-8 h-8 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-sm tracking-wide">{badge.title}</p>
+                  <p className="text-gray-500 text-sm">{badge.subtitle}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col items-center gap-3">
-              <Shield className="w-8 h-8" />
-              <div>
-                <p className="font-semibold text-sm tracking-wide">CASH ON DELIVERY</p>
-                <p className="text-gray-500 text-sm">Pay when your order arrives</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-3">
-              <RotateCcw className="w-8 h-8" />
-              <div>
-                <p className="font-semibold text-sm tracking-wide">EASY RETURNS</p>
-                <p className="text-gray-500 text-sm">7-day hassle-free returns</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Varieties grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-        <div className="text-center mb-10">
-          <p className="text-xs tracking-[0.3em] text-gray-500 mb-1">THE COLLECTION</p>
-          <h2 className="text-3xl font-bold tracking-tight">5 VARIETIES. 1 BRAND.</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {VARIETIES.map((variety, i) => (
-            <Link
-              key={variety}
-              to={`/shop?variety=${encodeURIComponent(variety)}`}
-              className="group relative aspect-[3/4] bg-gray-100 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors z-10" />
-              <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                <p className="text-white text-xs font-semibold tracking-wider leading-tight">{variety.toUpperCase()}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+      {/* Shop CTA */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <p className="text-xs tracking-[0.3em] text-gray-500 mb-1">THE COLLECTION</p>
+        <h2 className="text-3xl font-bold tracking-tight mb-4">SHOP ALL SHIRTS</h2>
+        <p className="text-gray-600 max-w-md mx-auto mb-8">
+          Browse our full range of premium shirts and find your next favourite.
+        </p>
+        <Link
+          to="/shop"
+          className="inline-flex items-center gap-2 bg-black text-white px-8 py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors"
+        >
+          VIEW COLLECTION <ArrowRight className="w-4 h-4" />
+        </Link>
       </section>
     </div>
   )

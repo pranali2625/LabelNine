@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag } from 'lucide-react'
 import ImageSlideshow from '../components/ImageSlideshow'
+import SizeChart from '../components/SizeChart'
 import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
@@ -16,6 +17,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedSize, setSelectedSize] = useState('')
+  const [sizeChartOpen, setSizeChartOpen] = useState(false)
 
   useEffect(() => {
     api.get(`/products/${id}`)
@@ -89,12 +91,19 @@ export default function ProductDetail() {
               </>
             )}
           </div>
-          <p className="text-xs text-gray-500 mb-6">Inclusive of all taxes • Free delivery above ₹499</p>
+          <p className="text-xs text-gray-500 mb-6">Inclusive of all taxes</p>
 
           {/* Size selection */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold tracking-wider">SELECT SIZE</h3>
+              <button
+                type="button"
+                onClick={() => setSizeChartOpen(true)}
+                className="text-xs text-gray-600 underline underline-offset-2 hover:text-black transition-colors"
+              >
+                Size Guide
+              </button>
             </div>
             <div className="flex flex-wrap gap-2">
               {product.sizes
@@ -148,6 +157,12 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      <SizeChart
+        open={sizeChartOpen}
+        onClose={() => setSizeChartOpen(false)}
+        fit={product.fit}
+      />
     </div>
   )
 }

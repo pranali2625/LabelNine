@@ -4,7 +4,6 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
-const VARIETIES = ['Classic White Formal', 'Oxford Button-Down', 'Slim Fit Solid', 'Casual Linen', 'Printed Heritage']
 const SIZES = ['M', 'L', 'XL', 'XXL']
 const SORTS = [
   { value: 'newest', label: 'Newest First' },
@@ -16,6 +15,7 @@ const SORTS = [
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState([])
+  const [varieties, setVarieties] = useState([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
@@ -25,6 +25,18 @@ export default function Shop() {
   const sort = searchParams.get('sort') || 'newest'
   const size = searchParams.get('size') || ''
   const page = parseInt(searchParams.get('page') || '1')
+
+  useEffect(() => {
+    api.get('/products?limit=100', {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+    })
+      .then(res => {
+        const list = Array.isArray(res.data?.products) ? res.data.products : []
+        const unique = [...new Set(list.map((p) => p.variety).filter(Boolean))].sort()
+        setVarieties(unique)
+      })
+      .catch(console.error)
+  }, [])
 
   useEffect(() => {
     const fetch = async () => {
@@ -87,14 +99,15 @@ export default function Shop() {
         <aside className={`${filterOpen ? 'block' : 'hidden'} md:block w-56 flex-shrink-0`}>
           <div className="sticky top-24 space-y-6">
             {/* Variety filter */}
+            {varieties.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold tracking-wider mb-3">VARIETY</h3>
+              <h3 className="text-sm font-semibold tracking-wider mb-3">CATEGORY</h3>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="variety" checked={!variety} onChange={() => setParam('variety', '')} className="accent-black" />
                   <span className="text-sm">All</span>
                 </label>
-                {VARIETIES.map(v => (
+                {varieties.map(v => (
                   <label key={v} className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="variety" checked={variety === v} onChange={() => setParam('variety', v)} className="accent-black" />
                     <span className="text-sm">{v}</span>
@@ -102,6 +115,7 @@ export default function Shop() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Size filter */}
             <div>

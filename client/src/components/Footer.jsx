@@ -32,11 +32,8 @@ export default function Footer() {
             <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">SHOP</h4>
             <ul className="space-y-2">
               <li><Link to="/shop" className="text-gray-400 hover:text-white text-sm transition-colors">All Shirts</Link></li>
-              <li><Link to="/shop?variety=Classic White Formal" className="text-gray-400 hover:text-white text-sm transition-colors">Classic White Formal</Link></li>
-              <li><Link to="/shop?variety=Oxford Button-Down" className="text-gray-400 hover:text-white text-sm transition-colors">Oxford Button-Down</Link></li>
-              <li><Link to="/shop?variety=Slim Fit Solid" className="text-gray-400 hover:text-white text-sm transition-colors">Slim Fit Solid</Link></li>
-              <li><Link to="/shop?variety=Casual Linen" className="text-gray-400 hover:text-white text-sm transition-colors">Casual Linen</Link></li>
-              <li><Link to="/shop?variety=Printed Heritage" className="text-gray-400 hover:text-white text-sm transition-colors">Printed Heritage</Link></li>
+              <li><Link to="/shop?sort=newest" className="text-gray-400 hover:text-white text-sm transition-colors">New Arrivals</Link></li>
+              <li><Link to="/shop?featured=true" className="text-gray-400 hover:text-white text-sm transition-colors">Featured</Link></li>
             </ul>
           </div>
 
@@ -67,7 +64,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs">© 2024 Label Nine. All rights reserved.</p>
-          <p className="text-gray-500 text-xs">Cash on Delivery available • Free delivery above ₹499</p>
+          <p className="text-gray-500 text-xs">Cash on Delivery available</p>
         </div>
       </div>
     </footer>
