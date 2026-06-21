@@ -11,10 +11,27 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+function razorpayConfigError() {
+  const keyId = process.env.RAZORPAY_KEY_ID?.trim();
+  const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  if (!keyId || !keySecret) {
+    return 'Razorpay API keys are not configured (set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env)';
+  }
+  if (keyId.includes('xxxx') || keySecret === 'your_razorpay_secret') {
+    return 'Razorpay API keys are still placeholders — add your test keys from https://dashboard.razorpay.com/app/keys to server/.env';
+  }
+  return null;
+}
+
 // @route POST /api/payments/create-order
 // @desc  Create Razorpay order before payment
 router.post('/create-order', protect, async (req, res) => {
   try {
+    const configError = razorpayConfigError();
+    if (configError) {
+      return res.status(503).json({ success: false, message: configError });
+    }
+
     const { orderId } = req.body;
 
     const order = await Order.findOne({ orderId, user: req.user._id });
@@ -48,7 +65,14 @@ router.post('/create-order', protect, async (req, res) => {
     });
   } catch (err) {
     console.error('Razorpay order create error:', err);
-    res.status(500).json({ success: false, message: 'Payment initiation failed' });
+    const razorpayMsg = err?.error?.description || err?.error?.reason;
+    const message =
+      razorpayMsg === 'Authentication failed'
+        ? 'Razorpay authentication failed — check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env'
+        : process.env.NODE_ENV === 'development' && razorpayMsg
+          ? `Payment initiation failed: ${razorpayMsg}`
+          : 'Payment initiation failed';
+    res.status(500).json({ success: false, message });
   }
 });
 

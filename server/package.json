@@ -6,10 +6,12 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon dev-start.js",
+    "dev:live": "nodemon live-start.js",
     "seed": "node seed.js",
     "db:pull": "node scripts/pull-prod-api.js",
     "db:pull:mysql": "node scripts/pull-prod-db.js",
-    "db:import": "node scripts/import-prod-snapshot.js"
+    "db:import": "node scripts/import-prod-snapshot.js",
+    "db:test": "node scripts/test-db-connection.js"
   },
   "keywords": [],
   "author": "",

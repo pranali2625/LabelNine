@@ -20,7 +20,11 @@ api.interceptors.response.use(
       const url = err.config?.url || ''
       const message = err.response?.data?.message || ''
       const isAuthEndpoint = url.includes('/auth/')
-      const isCredentialError = ['Invalid credentials', 'Current password is incorrect'].includes(message)
+      const isCredentialError = [
+        'Invalid credentials',
+        'Current password is incorrect',
+        'Account setup is incomplete. Please finish registration or contact support.'
+      ].includes(message)
       const onAuthPage = ['/login', '/register'].includes(window.location.pathname)
       const hadToken = !!localStorage.getItem('ln_token')
 

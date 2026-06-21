@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev:live": "concurrently \"npm run server:live\" \"npm run client\"",
     "server": "cd server && npm run dev",
+    "server:live": "cd server && npm run dev:live",
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build && node ../scripts/copy-build.js",
     "install:all": "cd server && npm install --omit=dev && cd ../client && npm install --include=dev",
@@ -12,6 +14,8 @@
     "start": "cd server && npm start",
     "seed": "cd server && npm run seed",
     "db:pull": "cd server && npm run db:pull",
+    "db:pull:mysql": "cd server && npm run db:pull:mysql",
+    "db:test": "cd server && npm run db:test",
     "db:import": "cd server && npm run db:import",
     "deploy": "node scripts/deploy.js"
   },

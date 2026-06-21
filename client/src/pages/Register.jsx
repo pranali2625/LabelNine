@@ -1,18 +1,32 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { normalizePhone, resolveAuthRedirect } from '../utils/auth'
 
 export default function Register() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') || '/'
   const { register, loading } = useAuth()
 
   const [showPass, setShowPass] = useState(false)
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '', confirmPassword: ''
   })
-  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
+  const onChange = (e) => {
+    const { name, value } = e.target
+    if (name === 'phone') {
+      setForm((p) => ({ ...p, phone: value.replace(/\D/g, '').slice(0, 10) }))
+      return
+    }
+    setForm((p) => ({ ...p, [name]: value }))
+  }
+
+  const loginLink = redirect && redirect !== '/'
+    ? `/login?redirect=${encodeURIComponent(redirect)}`
+    : '/login'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -24,7 +38,7 @@ export default function Register() {
       toast.error('Password must be at least 6 characters')
       return
     }
-    if (!/^[6-9]\d{9}$/.test(form.phone)) {
+    if (!/^[6-9]\d{9}$/.test(normalizePhone(form.phone))) {
       toast.error('Please enter a valid 10-digit mobile number')
       return
     }
@@ -37,7 +51,7 @@ export default function Register() {
     })
 
     if (result.success) {
-      navigate('/')
+      navigate(resolveAuthRedirect(redirect, result.user?.role))
     }
   }
 
@@ -82,7 +96,7 @@ export default function Register() {
           </form>
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-black hover:underline">Sign in</Link>
+            <Link to={loginLink} className="font-semibold text-black hover:underline">Sign in</Link>
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { formatUser } = require('../utils/format');
+const { normalizePhone, normalizeEmail } = require('../utils/authNormalize');
 
 class User {
   constructor(data) {
@@ -95,25 +96,43 @@ class User {
   }
 
   static async registerSimple({ name, email, phone, password }) {
-    const normalizedEmail = email ? String(email).toLowerCase() : null;
+    const normalizedEmail = email ? normalizeEmail(email) : null;
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
+
+    if (normalizedPhone && !/^[6-9]\d{9}$/.test(normalizedPhone)) {
+      throw new Error('Please enter a valid 10-digit mobile number');
+    }
 
     const existing = await User.findOne({
       $or: [
-        phone ? { phone } : null,
+        normalizedPhone ? { phone: normalizedPhone } : null,
         normalizedEmail ? { email: normalizedEmail } : null
       ].filter(Boolean)
-    });
+    }, '+password');
+
+    if (existing?.isRegistrationVerified()) {
+      throw new Error('User already exists with this email or phone');
+    }
 
     if (existing) {
-      throw new Error('User already exists with this email or phone');
+      existing.name = name;
+      if (normalizedEmail) existing.email = normalizedEmail;
+      if (normalizedPhone) existing.phone = normalizedPhone;
+      await existing._savePassword(password);
+      existing.isPhoneVerified = Boolean(normalizedPhone);
+      existing.isEmailVerified = Boolean(normalizedEmail);
+      existing.otp = null;
+      existing.otpExpire = null;
+      await existing.save();
+      return existing;
     }
 
     return User.create({
       name,
       email: normalizedEmail,
-      phone: phone || null,
+      phone: normalizedPhone,
       password,
-      isPhoneVerified: Boolean(phone),
+      isPhoneVerified: Boolean(normalizedPhone),
       isEmailVerified: Boolean(normalizedEmail)
     });
   }

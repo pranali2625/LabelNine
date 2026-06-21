@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { resolveAuthRedirect } from '../utils/auth'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -13,11 +14,15 @@ export default function Login() {
   const [form, setForm] = useState({ identifier: '', password: '' })
   const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
 
+  const registerLink = redirect && redirect !== '/'
+    ? `/register?redirect=${encodeURIComponent(redirect)}`
+    : '/register'
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await login({ identifier: form.identifier, password: form.password })
     if (result.success) {
-      navigate(result.user?.role === 'admin' ? '/admin' : `/${redirect === '/' ? '' : redirect}`)
+      navigate(resolveAuthRedirect(redirect, result.user?.role))
     }
   }
 
@@ -71,7 +76,7 @@ export default function Login() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Don't have an account?{' '}
-            <Link to="/register" className="font-semibold text-black hover:underline">Create one</Link>
+            <Link to={registerLink} className="font-semibold text-black hover:underline">Create one</Link>
           </p>
         </div>
       </div>

@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const { deliverRegistrationOtp, deliverAuthOtp } = require('../utils/otpDelivery');
+const { normalizePhone, normalizeEmail, normalizeLoginIdentifier } = require('../utils/authNormalize');
 
 const userResponse = (user) => ({
   _id: user._id,
@@ -31,7 +32,10 @@ const findPendingUser = ({ email, phone }) => {
 // @desc  Simple registration with email/phone + password (no OTP)
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const name = String(req.body.name || '').trim();
+    const email = normalizeEmail(req.body.email);
+    const phone = normalizePhone(req.body.phone);
+    const { password } = req.body;
 
     if (!name || !email || !phone || !password) {
       return res.status(400).json({
@@ -50,7 +54,7 @@ router.post('/register', async (req, res) => {
 
     const user = await User.registerSimple({
       name,
-      email: email.toLowerCase(),
+      email,
       phone,
       password
     });
@@ -74,15 +78,17 @@ router.post('/register', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizePhone(phone);
 
-    if (!email || !phone || !password) {
+    if (!normalizedEmail || !normalizedPhone || !password) {
       return res.status(400).json({
         success: false,
         message: 'Email, mobile number, and new password are required'
       });
     }
 
-    if (!/^[6-9]\d{9}$/.test(phone)) {
+    if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
       return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
     }
 
@@ -90,7 +96,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase(), phone });
+    const user = await User.findOne({ email: normalizedEmail, phone: normalizedPhone });
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -258,12 +264,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide identifier and password' });
     }
 
-    const isPhone = /^[6-9]\d{9}$/.test(identifier);
-    const query = isPhone ? { phone: identifier } : { email: identifier.toLowerCase() };
+    const loginId = normalizeLoginIdentifier(identifier);
+    const query = loginId.type === 'phone' ? { phone: loginId.value } : { email: loginId.value };
 
     const user = await User.findOne(query, '+password');
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (!user.isRegistrationVerified()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account setup is incomplete. Please finish registration or contact support.'
+      });
     }
 
     if (!user.isActive) {

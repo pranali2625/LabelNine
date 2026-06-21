@@ -34,8 +34,8 @@ function getDbConfig() {
   const socketPath = env('DB_SOCKET');
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
-  // Explicit socket path (Hostinger shared hosting, or override via DB_SOCKET).
-  if (socketPath) {
+  // Socket only for local Hostinger app server — not for remote TCP hosts.
+  if (socketPath && isLocalHost) {
     return { ...base, socketPath };
   }
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from 'react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeLoginIdentifier, normalizePhone } from '../utils/auth'
 
 const AuthContext = createContext(null)
 
@@ -20,7 +21,12 @@ export function AuthProvider({ children }) {
   const register = async ({ name, email, phone, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/register', { name, email, phone, password })
+      const { data } = await api.post('/auth/register', {
+        name: String(name || '').trim(),
+        email: String(email || '').trim(),
+        phone: normalizePhone(phone),
+        password
+      })
       saveAuth(data.token, data.user)
       toast.success('Account created!')
       return { success: true, user: data.user }
@@ -36,7 +42,10 @@ export function AuthProvider({ children }) {
   const login = async ({ identifier, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/login', { identifier, password })
+      const { data } = await api.post('/auth/login', {
+        identifier: normalizeLoginIdentifier(identifier),
+        password
+      })
       saveAuth(data.token, data.user)
       toast.success(`Welcome back, ${data.user.name}!`)
       return { success: true, user: data.user }
@@ -52,7 +61,11 @@ export function AuthProvider({ children }) {
   const resetPassword = async ({ email, phone, password }) => {
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/reset-password', { email, phone, password })
+      const { data } = await api.post('/auth/reset-password', {
+        email: String(email || '').trim(),
+        phone: normalizePhone(phone),
+        password
+      })
       toast.success(data.message || 'Password updated!')
       return { success: true }
     } catch (err) {
