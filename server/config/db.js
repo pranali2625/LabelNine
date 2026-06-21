@@ -34,8 +34,9 @@ function getDbConfig() {
   const socketPath = env('DB_SOCKET');
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
-  // Socket only for local Hostinger app server — not for remote TCP hosts.
-  if (socketPath && isLocalHost) {
+  // Explicit socket path (Hostinger app server). For remote MySQL from your PC,
+  // live-start.js clears DB_SOCKET before loading index.js.
+  if (socketPath) {
     return { ...base, socketPath };
   }
 
