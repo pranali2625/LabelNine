@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const User = require('../models/User');
 const Product = require('../models/Product');
@@ -6,6 +7,16 @@ const Order = require('../models/Order');
 const { protect, adminOnly } = require('../middleware/auth');
 const { notifyOrderStatus } = require('../utils/orderNotifications');
 const { restoreOrderStock } = require('../utils/orderStock');
+const { storeProductImage, getStorageInfo } = require('../utils/imageUpload');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'));
+  }
+});
 
 // All admin routes require authentication + admin role
 router.use(protect, adminOnly);
@@ -167,6 +178,32 @@ router.get('/products', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+router.post('/upload-image', (req, res) => {
+  upload.single('image')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    try {
+      const result = await storeProductImage(req.file, req);
+      res.json({ success: true, url: result.url, storage: result.storage });
+    } catch (uploadErr) {
+      res.status(uploadErr.message === 'No image file provided' ? 400 : 500).json({
+        success: false,
+        message: uploadErr.message
+      });
+    }
+  });
+});
+
+router.get('/storage-info', (_req, res) => {
+  const info = getStorageInfo();
+  res.json({
+    success: true,
+    ...info,
+    hint: 'Images are stored on disk outside public_html and survive Hostinger redeploys.'
+  });
 });
 
 module.exports = router;

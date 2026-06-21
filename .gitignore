@@ -6,3 +6,5 @@ dist/
 *.log
 .DS_Store
 server/DEPLOY_VERSION
+server/uploads/products/*
+!server/uploads/products/.gitkeep

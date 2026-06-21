@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Package, X, Check, ImagePlus, Trash } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, X, Check, ImagePlus, Trash, Upload } from 'lucide-react'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 
@@ -21,6 +21,7 @@ export default function AdminProducts() {
   const [modal, setModal] = useState(null) // null | 'add' | 'edit' | 'stock'
   const [form, setForm] = useState(emptyProduct)
   const [saving, setSaving] = useState(false)
+  const [uploadingIndex, setUploadingIndex] = useState(null)
 
   const fetchProducts = () => {
     setLoading(true)
@@ -60,9 +61,31 @@ export default function AdminProducts() {
   const handleImageChange = (index, value) => {
     setForm(prev => {
       const images = [...prev.images]
-      images[index] = { url: value }
+      images[index] = { ...images[index], url: value }
       return { ...prev, images }
     })
+  }
+
+  const handleImageUpload = async (index, file) => {
+    if (!file) return
+    setUploadingIndex(index)
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const { data } = await api.post('/admin/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setForm(prev => {
+        const images = [...prev.images]
+        images[index] = { url: data.url }
+        return { ...prev, images }
+      })
+      toast.success('Image uploaded')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed')
+    } finally {
+      setUploadingIndex(null)
+    }
   }
 
   const addImage = () => {
@@ -282,9 +305,24 @@ export default function AdminProducts() {
                           <input
                             value={img.url}
                             onChange={e => handleImageChange(index, e.target.value)}
-                            placeholder="https://..."
+                            placeholder="Click Upload or paste a URL"
                             className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
                           />
+                          <label
+                            className={`p-2 border border-gray-300 hover:border-black transition-colors cursor-pointer flex-shrink-0 ${uploadingIndex === index ? 'opacity-50 pointer-events-none' : ''}`}
+                            title="Upload image"
+                          >
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              onChange={(e) => {
+                                handleImageUpload(index, e.target.files?.[0])
+                                e.target.value = ''
+                              }}
+                            />
+                            <Upload className="w-4 h-4" />
+                          </label>
                           <button
                             type="button"
                             onClick={() => removeImage(index)}
@@ -296,7 +334,9 @@ export default function AdminProducts() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">First image is used as the cover. Add multiple URLs for a slideshow.</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      First image is the cover. Use Upload — files are saved to a persistent folder on the server (not public_html).
+                    </p>
                   </div>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">

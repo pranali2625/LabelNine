@@ -48,4 +48,7 @@ Required hPanel env vars:
   DB_USER, DB_PASSWORD, DB_NAME
   CLIENT_URL=https://labelnine.in
   JWT_SECRET, RAZORPAY_*, SMTP_*
+  PRODUCT_IMAGES_DIR=/home/u835300783/domains/labelnine.in/product-images
+
+Product images: use Admin → Products → Upload (NOT public_html — redeploys wipe that folder).
 `);

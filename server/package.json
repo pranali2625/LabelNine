@@ -11,7 +11,8 @@
     "db:pull": "node scripts/pull-prod-api.js",
     "db:pull:mysql": "node scripts/pull-prod-db.js",
     "db:import": "node scripts/import-prod-snapshot.js",
-    "db:test": "node scripts/test-db-connection.js"
+    "db:test": "node scripts/test-db-connection.js",
+    "images:check": "node scripts/check-product-images.js"
   },
   "keywords": [],
   "author": "",

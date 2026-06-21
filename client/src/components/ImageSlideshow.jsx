@@ -21,9 +21,12 @@ export default function ImageSlideshow({
   enableSwipe = true,
 }) {
   const validImages = images.filter((img) => img?.url)
+  const [failedUrls, setFailedUrls] = useState([])
   const [index, setIndex] = useState(0)
   const [hovering, setHovering] = useState(false)
   const [autoPlayPaused, setAutoPlayPaused] = useState(false)
+
+  const availableImages = validImages.filter((img) => !failedUrls.includes(img.url))
 
   const containerRef = useRef(null)
   const touchStart = useRef(null)
@@ -32,10 +35,11 @@ export default function ImageSlideshow({
   useEffect(() => {
     setIndex(0)
     setAutoPlayPaused(false)
+    setFailedUrls([])
   }, [images])
 
   useEffect(() => {
-    if (validImages.length <= 1) return
+    if (availableImages.length <= 1) return
 
     const shouldAutoPlay = autoPlay && !autoPlayPaused && !(pauseOnHover && hovering)
     const shouldHoverPlay = hoverPlay && hovering
@@ -44,12 +48,12 @@ export default function ImageSlideshow({
 
     const interval = shouldHoverPlay ? hoverPlayInterval : autoPlayInterval
     const timer = setInterval(() => {
-      setIndex((i) => (i + 1) % validImages.length)
+      setIndex((i) => (i + 1) % availableImages.length)
     }, interval)
 
     return () => clearInterval(timer)
   }, [
-    validImages.length,
+    availableImages.length,
     autoPlay,
     autoPlayInterval,
     hoverPlay,
@@ -61,7 +65,7 @@ export default function ImageSlideshow({
 
   useEffect(() => {
     const el = containerRef.current
-    if (!el || !enableSwipe || validImages.length <= 1) return
+    if (!el || !enableSwipe || availableImages.length <= 1) return
 
     const onTouchStart = (e) => {
       touchStart.current = {
@@ -88,7 +92,7 @@ export default function ImageSlideshow({
         setAutoPlayPaused(true)
         setIndex((i) => {
           const next = dx < 0 ? i + 1 : i - 1
-          return (next + validImages.length) % validImages.length
+          return (next + availableImages.length) % availableImages.length
         })
         didSwipe.current = true
         e.preventDefault()
@@ -106,15 +110,21 @@ export default function ImageSlideshow({
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [enableSwipe, validImages.length])
+  }, [enableSwipe, availableImages.length])
 
-  const currentUrl = validImages[index]?.url || placeholder
-  const hasMultiple = validImages.length > 1
+  const safeIndex = availableImages.length ? Math.min(index, availableImages.length - 1) : 0
+  const currentUrl = availableImages[safeIndex]?.url || placeholder
+  const hasMultiple = availableImages.length > 1
+
+  const markImageFailed = (url) => {
+    if (!url || url === placeholder) return
+    setFailedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]))
+  }
 
   const goTo = (next) => {
     if (!hasMultiple) return
     setAutoPlayPaused(true)
-    setIndex((i) => (next + validImages.length) % validImages.length)
+    setIndex((i) => (next + availableImages.length) % availableImages.length)
   }
 
   const selectIndex = (i) => {
@@ -146,6 +156,7 @@ export default function ImageSlideshow({
           className={`${imgClassName} transition-opacity duration-500 pointer-events-none`}
           loading="lazy"
           draggable={false}
+          onError={() => markImageFailed(currentUrl)}
         />
 
         {hasMultiple && autoPlay && (
@@ -170,7 +181,7 @@ export default function ImageSlideshow({
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                goTo(index - 1)
+                goTo(safeIndex - 1)
               }}
               className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 hover:bg-white transition-colors"
               aria-label="Previous image"
@@ -182,7 +193,7 @@ export default function ImageSlideshow({
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                goTo(index + 1)
+                goTo(safeIndex + 1)
               }}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 hover:bg-white transition-colors"
               aria-label="Next image"
@@ -194,7 +205,7 @@ export default function ImageSlideshow({
 
         {hasMultiple && showDots && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {validImages.map((_, i) => (
+            {availableImages.map((_, i) => (
               <button
                 key={i}
                 type="button"
@@ -204,7 +215,7 @@ export default function ImageSlideshow({
                   selectIndex(i)
                 }}
                 className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  index === i ? 'bg-white' : 'bg-white/50'
+                  safeIndex === i ? 'bg-white' : 'bg-white/50'
                 }`}
                 aria-label={`View image ${i + 1}`}
               />
@@ -215,16 +226,16 @@ export default function ImageSlideshow({
 
       {hasMultiple && showThumbnails && (
         <div className="flex gap-2 mt-3 overflow-x-auto">
-          {validImages.map((img, i) => (
+          {availableImages.map((img, i) => (
             <button
               key={i}
               type="button"
               onClick={() => selectIndex(i)}
               className={`w-16 h-20 flex-shrink-0 overflow-hidden border-2 ${
-                index === i ? 'border-black' : 'border-transparent'
+                safeIndex === i ? 'border-black' : 'border-transparent'
               }`}
             >
-              <img src={img.url} alt="" className="w-full h-full object-cover" />
+              <img src={img.url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
             </button>
           ))}
         </div>

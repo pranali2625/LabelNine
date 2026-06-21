@@ -9,6 +9,11 @@ const path = require('path');
 const fs = require('fs');
 const { getPool, ensureSchema } = require('./config/db');
 const { initializeDatabase } = require('./utils/seedDatabase');
+const {
+  ensureProductImagesDir,
+  getProductImagesDir,
+  resolveProductImage
+} = require('./utils/productImages');
 
 const app = express();
 
@@ -125,12 +130,28 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 const publicDir = path.join(__dirname, 'public');
+const productImagesDir = ensureProductImagesDir();
 const indexHtml = path.join(publicDir, 'index.html');
 const hasFrontend = fs.existsSync(indexHtml);
+const STATIC_EXT = /\.(png|jpe?g|webp|gif|svg|ico|css|js|mjs|map|woff2?|ttf|eot)$/i;
+
+console.log('Product images folder:', productImagesDir);
+
+app.use('/uploads/products', express.static(productImagesDir, { maxAge: '7d', fallthrough: true }));
+
+// Legacy URLs like https://labelnine.in/mens-shirt-ice-blue.png
+app.get(/^\/[^/]+\.(png|jpe?g|webp|gif)$/i, (req, res, next) => {
+  const filePath = resolveProductImage(path.basename(req.path));
+  if (filePath) return res.sendFile(filePath);
+  next();
+});
 
 if (hasFrontend) {
   app.use(express.static(publicDir));
-  app.get(/^\/(?!api).*/, (req, res) => {
+  app.get(/^\/(?!api).*/, (req, res, next) => {
+    if (STATIC_EXT.test(req.path)) {
+      return res.status(404).type('text/plain').send('Not found');
+    }
     res.sendFile(indexHtml);
   });
 } else {
