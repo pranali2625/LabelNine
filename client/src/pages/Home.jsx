@@ -1,26 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, Shield, RotateCcw } from 'lucide-react'
+import { ArrowRight, Truck, RotateCcw } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
 
-const CRAFT_IMAGES = {
-  threads: 'https://images.unsplash.com/photo-1770910195240-ddec777b77f6?w=600&q=80',
-  stitches: 'https://images.unsplash.com/photo-1742674537189-415cfb85ce05?w=600&q=80',
-}
+const OUR_STORY_IMAGES = [
+  { src: '/images/our-story.png', alt: 'Precision fabric cutting' },
+  { src: '/images/our-story-sewing.png', alt: 'Expert shirt stitching' },
+  { src: '/images/our-story-packaging.png', alt: 'Premium Label Nine packaging' },
+]
 
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
-  'CASH ON DELIVERY',
+  // 'CASH ON DELIVERY',
   'EASY 7-DAY RETURNS',
   'CRAFTED WITH CARE',
 ]
 
 const TRUST_BADGES = [
-  { Icon: Truck, title: 'PAN INDIA DELIVERY', subtitle: 'Delivered to your doorstep' },
-  { Icon: Shield, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
+  { Icon: Truck, title: 'MAHARASHTRA DELIVERY', subtitle: 'Delivered across Maharashtra' },
+  // { Icon: Shield, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
   { Icon: RotateCcw, title: 'EASY RETURNS', subtitle: '7-day hassle-free returns' },
 ]
 
@@ -119,9 +120,9 @@ export default function Home() {
       </section>
 
       {/* Brand story */}
-      <section className="bg-gray-50 py-16">
+      <section className="bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-[minmax(0,28rem)_1fr] gap-8 lg:gap-10 items-start">
             <div>
               <p className="text-xs tracking-[0.3em] text-gray-500 mb-2">OUR STORY</p>
               <h2 className="text-3xl font-bold mb-6 tracking-tight">CRAFTED FOR THE<br />MODERN MAN</h2>
@@ -135,9 +136,16 @@ export default function Home() {
                 EXPLORE COLLECTION <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <CraftImage src={CRAFT_IMAGES.threads} alt="Quality sewing threads" />
-              <CraftImage src={CRAFT_IMAGES.stitches} alt="Precision garment stitching" className="mt-8" />
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full items-start">
+              {OUR_STORY_IMAGES.map((image, i) => (
+                <CraftImage
+                  key={image.src}
+                  src={image.src}
+                  alt={image.alt}
+                  aspect="aspect-[4/5]"
+                  className={i === 1 ? 'mt-6 sm:mt-8' : ''}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -146,7 +154,7 @@ export default function Home() {
       {/* Trust badges */}
       <section className="border-t border-b border-gray-200 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto sm:max-w-none">
             {TRUST_BADGES.map((badge) => (
               <div key={badge.title} className="flex items-center gap-3 justify-center sm:justify-start">
                 <badge.Icon className="w-8 h-8 flex-shrink-0" />
@@ -178,7 +186,7 @@ export default function Home() {
   )
 }
 
-function CraftImage({ src, alt, className = '' }) {
+function CraftImage({ src, alt, className = '', aspect = 'aspect-[3/4]' }) {
   const [imgSrc, setImgSrc] = useState(src)
 
   useEffect(() => {
@@ -186,7 +194,7 @@ function CraftImage({ src, alt, className = '' }) {
   }, [src])
 
   return (
-    <div className={`aspect-[3/4] overflow-hidden bg-gray-100 ${className}`}>
+    <div className={`${aspect} overflow-hidden bg-gray-100 ${className}`}>
       <img
         src={imgSrc}
         alt={alt}

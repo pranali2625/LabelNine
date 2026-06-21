@@ -7,6 +7,7 @@ const { protect } = require('../middleware/auth');
 const { generateOrderId, calculatePrices } = require('../utils/helpers');
 const { restoreOrderStock, deductOrderStock } = require('../utils/orderStock');
 const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
+const { validateShippingAddress } = require('../../shared/maharashtra');
 
 const findUserOrder = (id, userId) =>
   Order.findOne({
@@ -22,10 +23,23 @@ const findUserOrder = (id, userId) =>
 router.post('/', protect, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { items, shippingAddress, paymentMethod = 'COD' } = req.body;
+    const { items, shippingAddress, paymentMethod = 'RAZORPAY' } = req.body;
+
+    if (paymentMethod === 'COD') {
+      return res.status(400).json({ success: false, message: 'Cash on Delivery is currently unavailable' });
+    }
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in order' });
+    }
+
+    if (!shippingAddress) {
+      return res.status(400).json({ success: false, message: 'Shipping address is required' });
+    }
+
+    const addressCheck = validateShippingAddress(shippingAddress);
+    if (!addressCheck.valid) {
+      return res.status(400).json({ success: false, message: addressCheck.message });
     }
 
     const orderItems = [];
@@ -54,7 +68,8 @@ router.post('/', protect, async (req, res) => {
     }
 
     const { itemsPrice, shippingPrice, taxPrice, totalAmount } = calculatePrices(orderItems);
-    const isCOD = paymentMethod === 'COD';
+    // const isCOD = paymentMethod === 'COD';
+    const isCOD = false;
 
     await conn.beginTransaction();
 

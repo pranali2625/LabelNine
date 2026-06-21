@@ -71,7 +71,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs">© 2026 Label Nine. All rights reserved.</p>
-          <p className="text-gray-500 text-xs">Cash on Delivery available</p>
+          {/* <p className="text-gray-500 text-xs">Cash on Delivery available</p> */}
         </div>
       </div>
     </footer>

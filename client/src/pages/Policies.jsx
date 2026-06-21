@@ -65,21 +65,16 @@ export default function Policies() {
       {/* Quick stats */}
       <section className="bg-amber-400 text-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 max-w-3xl mx-auto">
             <div className="text-center sm:text-left">
               <p className="text-xs font-semibold tracking-[0.2em] mb-1">PROCESSING</p>
               <p className="text-2xl font-bold">1–3 days</p>
               <p className="text-sm opacity-80 mt-1">After payment confirmation</p>
             </div>
-            <div className="text-center sm:text-left sm:border-x sm:border-black/10 sm:px-8">
-              <p className="text-xs font-semibold tracking-[0.2em] mb-1">MAHARASHTRA</p>
-              <p className="text-2xl font-bold">2–5 days</p>
-              <p className="text-sm opacity-80 mt-1">Estimated delivery</p>
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-xs font-semibold tracking-[0.2em] mb-1">REST OF INDIA</p>
-              <p className="text-2xl font-bold">4–8 days</p>
-              <p className="text-sm opacity-80 mt-1">Estimated delivery</p>
+            <div className="text-center sm:text-left sm:border-l sm:border-black/10 sm:pl-8">
+              <p className="text-xs font-semibold tracking-[0.2em] mb-1">MAHARASHTRA DELIVERY</p>
+              <p className="text-2xl font-bold">2–6 days</p>
+              <p className="text-sm opacity-80 mt-1">Maharashtra addresses only</p>
             </div>
           </div>
         </div>
@@ -123,17 +118,20 @@ export default function Policies() {
           </SectionCard>
 
           <SectionCard icon={Truck} title="Delivery Timeline">
-            <p className="mb-4">Estimated delivery times:</p>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <p className="mb-4">Estimated delivery times within Maharashtra:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
               <div className="bg-gray-50 border border-gray-100 p-4 text-center">
-                <p className="text-xs tracking-wide text-gray-500 mb-1">Maharashtra</p>
-                <p className="font-bold text-black">2–5 days</p>
+                <p className="text-xs tracking-wide text-gray-500 mb-1">Metro cities</p>
+                <p className="font-bold text-black">2–4 days</p>
               </div>
               <div className="bg-gray-50 border border-gray-100 p-4 text-center">
-                <p className="text-xs tracking-wide text-gray-500 mb-1">Rest of India</p>
-                <p className="font-bold text-black">4–8 days</p>
+                <p className="text-xs tracking-wide text-gray-500 mb-1">Other districts</p>
+                <p className="font-bold text-black">3–6 days</p>
               </div>
             </div>
+            <p className="text-sm text-gray-600 mb-4">
+              We currently deliver only within Maharashtra. Orders with addresses outside Maharashtra cannot be placed.
+            </p>
             <p className="text-sm">
               Timelines are estimates and may vary due to weather, logistics issues, remote locations, public holidays, or other unforeseen circumstances.
             </p>

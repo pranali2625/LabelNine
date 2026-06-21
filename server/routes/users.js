@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const { validateShippingAddress } = require('../../shared/maharashtra');
 
 // @route GET /api/users/profile
 router.get('/profile', protect, async (req, res) => {
@@ -56,6 +57,11 @@ router.put('/password', protect, async (req, res) => {
 // @route POST /api/users/addresses
 router.post('/addresses', protect, async (req, res) => {
   try {
+    const addressCheck = validateShippingAddress(req.body);
+    if (!addressCheck.valid) {
+      return res.status(400).json({ success: false, message: addressCheck.message });
+    }
+
     const user = await User.findById(req.user._id);
 
     await user.pushAddress(req.body);
@@ -68,6 +74,11 @@ router.post('/addresses', protect, async (req, res) => {
 // @route PUT /api/users/addresses/:addressId
 router.put('/addresses/:addressId', protect, async (req, res) => {
   try {
+    const addressCheck = validateShippingAddress(req.body);
+    if (!addressCheck.valid) {
+      return res.status(400).json({ success: false, message: addressCheck.message });
+    }
+
     const user = await User.findById(req.user._id);
     const address = user.addressesId(req.params.addressId);
     if (!address) {

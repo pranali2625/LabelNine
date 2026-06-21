@@ -5,9 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { openRazorpayCheckout } from '../utils/razorpay'
-import { Banknote, CreditCard, Smartphone, Truck } from 'lucide-react'
-
-const STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry']
+import { CreditCard, Smartphone, Truck } from 'lucide-react'
+import { DELIVERY_STATE, MAHARASHTRA_CITIES, validateShippingAddress } from '../constants/maharashtra'
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -17,9 +16,9 @@ export default function Checkout() {
   const [address, setAddress] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
-    line1: '', line2: '', city: '', state: '', pincode: ''
+    line1: '', line2: '', city: '', state: DELIVERY_STATE, pincode: ''
   })
-  const [paymentMethod, setPaymentMethod] = useState('COD')
+  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY')
   const [loading, setLoading] = useState(false)
 
   const handleAddressChange = (e) => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -47,8 +46,9 @@ export default function Checkout() {
       toast.error('Please enter a valid 10-digit mobile number')
       return
     }
-    if (!/^[1-9][0-9]{5}$/.test(address.pincode)) {
-      toast.error('Please enter a valid 6-digit pincode')
+    const addressCheck = validateShippingAddress(address)
+    if (!addressCheck.valid) {
+      toast.error(addressCheck.message)
       return
     }
 
@@ -82,12 +82,12 @@ export default function Checkout() {
   }
 
   const paymentOptions = [
-    {
-      id: 'COD',
-      icon: Banknote,
-      title: 'Cash on Delivery (COD)',
-      description: 'Pay in cash when your order is delivered at your doorstep'
-    },
+    // {
+    //   id: 'COD',
+    //   icon: Banknote,
+    //   title: 'Cash on Delivery (COD)',
+    //   description: 'Pay in cash when your order is delivered at your doorstep'
+    // },
     {
       id: 'RAZORPAY',
       icon: Smartphone,
@@ -108,6 +108,7 @@ export default function Checkout() {
                 <Truck className="w-5 h-5" />
                 <h2 className="font-bold tracking-wide">DELIVERY ADDRESS</h2>
               </div>
+              <p className="text-xs text-gray-500 mb-4">Delivery available in Maharashtra only</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">FULL NAME *</label>
@@ -127,18 +128,25 @@ export default function Checkout() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">CITY *</label>
-                  <input name="city" value={address.city} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="City" />
+                  <select name="city" value={address.city} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white">
+                    <option value="">Select City</option>
+                    {MAHARASHTRA_CITIES.map((city) => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">PINCODE *</label>
-                  <input name="pincode" value={address.pincode} onChange={handleAddressChange} required maxLength={6} className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="6-digit pincode" />
+                  <input name="pincode" value={address.pincode} onChange={handleAddressChange} required maxLength={6} className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="Maharashtra pincode" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">STATE *</label>
-                  <select name="state" value={address.state} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white">
-                    <option value="">Select State</option>
-                    {STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <input
+                    name="state"
+                    value={DELIVERY_STATE}
+                    readOnly
+                    className="w-full border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 cursor-not-allowed"
+                  />
                 </div>
               </div>
             </div>
@@ -224,9 +232,10 @@ export default function Checkout() {
                     : `PLACE ORDER • ₹${orderTotal}`}
               </button>
               <p className="text-xs text-center text-gray-500 mt-3">
-                {paymentMethod === 'COD'
+                {/* {paymentMethod === 'COD'
                   ? `You will pay ₹${orderTotal} in cash on delivery`
-                  : 'You will be redirected to Razorpay to complete payment'}
+                  : 'You will be redirected to Razorpay to complete payment'} */}
+                You will be redirected to Razorpay to complete payment
               </p>
             </div>
           </div>

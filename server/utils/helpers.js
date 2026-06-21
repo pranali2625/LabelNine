@@ -15,6 +15,8 @@ const calculatePrices = (items) => {
   return { itemsPrice, shippingPrice, taxPrice, totalAmount };
 };
 
-const validatePincode = (pincode) => /^[1-9][0-9]{5}$/.test(pincode);
+const { isMaharashtraPincode } = require('../../shared/maharashtra');
+
+const validatePincode = (pincode) => isMaharashtraPincode(pincode);
 
 module.exports = { generateOrderId, calculatePrices, validatePincode };
