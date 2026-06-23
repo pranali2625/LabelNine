@@ -8,6 +8,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 const { notifyOrderStatus } = require('../utils/orderNotifications');
 const { restoreOrderStock } = require('../utils/orderStock');
 const { storeProductImage, getStorageInfo } = require('../utils/imageUpload');
+const { formatProductImages } = require('../utils/formatImageUrls');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -174,7 +175,14 @@ router.patch('/users/:id/status', async (req, res) => {
 router.get('/products', async (req, res) => {
   try {
     const products = await Product.find({}, { sort: { createdAt: -1 } });
-    res.json({ success: true, products });
+    res.json({
+      success: true,
+      products: products.map((product) => {
+        const p = product.toObject ? product.toObject() : { ...product };
+        p.images = formatProductImages(p.images, req);
+        return p;
+      })
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -1,30 +1,30 @@
 /**
- * List product image URLs and whether files exist on disk.
+ * Compare product_images URLs in DB with files on disk.
  * Run: cd server && npm run images:check
  */
 require('../config/env');
-const path = require('path');
 const { pool } = require('../config/db');
-const { getProductImagesDir, resolveProductImage } = require('../utils/productImages');
-
-function localFilename(url) {
-  if (!url) return null;
-  try {
-    const { pathname } = new URL(url);
-    const base = path.basename(pathname);
-    if (pathname.includes('/uploads/products/')) return decodeURIComponent(base);
-    return decodeURIComponent(base);
-  } catch {
-    return decodeURIComponent(url.split('?')[0].split('/').pop());
-  }
-}
+const {
+  getProductImagesDir,
+  listProductImageFiles,
+  extractImageFilename,
+  findProductImageFile,
+  publicImageUrl
+} = require('../utils/productImages');
+const { env } = require('../config/env');
 
 async function main() {
   const dir = getProductImagesDir();
-  console.log(`\nPersistent image folder: ${dir}\n`);
+  const baseUrl = (env('CLIENT_URL') || 'https://labelnine.in').replace(/\/$/, '');
+  const onDisk = listProductImageFiles();
+
+  console.log(`\nPersistent image folder: ${dir}`);
+  console.log(`Files on disk (${onDisk.length}):`);
+  onDisk.forEach((f) => console.log(`  - ${f}`));
+  console.log('');
 
   const [rows] = await pool.query(
-    `SELECT p.id, p.name, pi.url
+    `SELECT p.id, p.name, pi.id AS image_id, pi.url
      FROM product_images pi
      JOIN products p ON p.id = pi.product_id
      ORDER BY p.id, pi.id`
@@ -38,21 +38,38 @@ async function main() {
 
   let ok = 0;
   let missing = 0;
+  const usedFiles = new Set();
 
   for (const row of rows) {
-    const file = localFilename(row.url);
-    const exists = file && resolveProductImage(file);
-    const status = exists ? 'OK' : 'MISSING';
-    if (exists) ok += 1;
-    else missing += 1;
+    const file = extractImageFilename(row.url);
+    const filePath = file && findProductImageFile(file);
+    const status = filePath ? 'OK' : 'MISSING';
+    if (filePath) {
+      ok += 1;
+      usedFiles.add(require('path').basename(filePath));
+    } else {
+      missing += 1;
+    }
     console.log(`  [${status}] product ${row.id} | ${row.name}`);
     console.log(`           ${row.url}`);
-    if (file) console.log(`           file: ${file}`);
+    if (file) {
+      console.log(`           expected file: ${file}`);
+      if (filePath) {
+        console.log(`           served as: ${publicImageUrl(require('path').basename(filePath), baseUrl)}`);
+      }
+    }
   }
 
+  const orphanFiles = onDisk.filter((f) => !usedFiles.has(f));
   console.log(`\nSummary: ${ok} on disk, ${missing} missing.`);
+  if (orphanFiles.length) {
+    console.log(`\nOrphan files on disk (not linked in DB) — rename to match DB or re-upload via Admin:`);
+    orphanFiles.forEach((f) => console.log(`  - ${f}`));
+  }
   if (missing) {
-    console.log('\nRe-upload via Admin → Products → Upload button, then Save.');
+    console.log('\nFix: In Hostinger File Manager, rename files in product-images/ to match DB names');
+    console.log('     (e.g. "White B.png", "Mens-checks-half-front.png"), then redeploy/restart.');
+    console.log('     Or use Admin → Products → Upload for each image and Save.');
   }
 
   await pool.end();

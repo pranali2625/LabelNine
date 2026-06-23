@@ -2,23 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const { protect, adminOnly } = require('../middleware/auth');
-
-const normalizeImageUrl = (url, req) => {
-  if (!url) return url;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('//')) return `${req.protocol}:${url}`;
-  if (url.startsWith('/')) return `${req.protocol}://${req.get('host')}${url}`;
-  return `${req.protocol}://${req.get('host')}/${url}`;
-};
+const { formatProductImages } = require('../utils/formatImageUrls');
 
 const formatProduct = (product, req) => {
   const p = product.toObject ? product.toObject() : { ...product };
-  p.images = Array.isArray(p.images)
-    ? p.images.map((img) => ({
-        ...img,
-        url: normalizeImageUrl(img.url, req)
-      }))
-    : [];
+  p.images = formatProductImages(p.images, req);
   return p;
 };
 

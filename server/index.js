@@ -12,7 +12,7 @@ const { initializeDatabase } = require('./utils/seedDatabase');
 const {
   ensureProductImagesDir,
   getProductImagesDir,
-  resolveProductImage
+  findProductImageFile
 } = require('./utils/productImages');
 
 const app = express();
@@ -141,7 +141,8 @@ app.use('/uploads/products', express.static(productImagesDir, { maxAge: '7d', fa
 
 // Legacy URLs like https://labelnine.in/mens-shirt-ice-blue.png
 app.get(/^\/[^/]+\.(png|jpe?g|webp|gif)$/i, (req, res, next) => {
-  const filePath = resolveProductImage(path.basename(req.path));
+  const filename = decodeURIComponent(path.basename(req.path));
+  const filePath = findProductImageFile(filename);
   if (filePath) return res.sendFile(filePath);
   next();
 });
