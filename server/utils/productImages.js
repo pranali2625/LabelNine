@@ -10,12 +10,7 @@ function getProductImagesDir() {
     return path.resolve(configured);
   }
 
-  // Hostinger: sibling of public_html/nodejs — survives redeploys
-  const hostingerPersistent = path.resolve(__dirname, '..', '..', 'product-images');
-  if (fs.existsSync(path.dirname(hostingerPersistent))) {
-    return hostingerPersistent;
-  }
-
+  // Default: server/uploads/products — drop image files here manually or via Admin upload
   return path.join(__dirname, '..', 'uploads', 'products');
 }
 
