@@ -4,7 +4,7 @@ import api from '../../services/api'
 import toast from 'react-hot-toast'
 
 const VARIETIES = ['Classic White Formal', 'Oxford Button-Down', 'Slim Fit Solid', 'Casual Linen', 'Cotton Linen', 'Printed Heritage']
-const SIZES = ['M', 'L', 'XL', 'XXL']
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 const FITS = ['Regular', 'Slim', 'Relaxed', 'Oversized']
 
 const emptyProduct = {

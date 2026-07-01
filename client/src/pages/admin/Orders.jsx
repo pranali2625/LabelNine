@@ -11,6 +11,25 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-100 text-red-700'
 }
 
+function canCreateShiprocket(order) {
+  if (order.shiprocket?.orderId) return false
+  return ['confirmed', 'processing'].includes(order.orderStatus)
+}
+
+function shiprocketStatusMessage(order) {
+  if (order.shiprocket?.orderId) return null
+  if (order.orderStatus === 'placed' && order.paymentInfo?.status !== 'paid') {
+    return 'Awaiting payment — Shiprocket syncs after payment is confirmed'
+  }
+  if (!['confirmed', 'processing'].includes(order.orderStatus)) {
+    return 'Set status to Confirmed or Processing, then create shipment'
+  }
+  if (order.paymentInfo?.status !== 'paid') {
+    return 'Payment pending — create shipment if you have verified payment offline'
+  }
+  return 'Ready to send to Shiprocket'
+}
+
 export default function AdminOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,6 +37,7 @@ export default function AdminOrders() {
   const [search, setSearch] = useState('')
   const [updating, setUpdating] = useState(null)
   const [expanded, setExpanded] = useState(null)
+  const [shiprocketLoading, setShiprocketLoading] = useState(null)
 
   const fetchOrders = (status = filter, q = search) => {
     setLoading(true)
@@ -42,6 +62,36 @@ export default function AdminOrders() {
       toast.error('Update failed')
     } finally {
       setUpdating(null)
+    }
+  }
+
+  const handleShiprocket = async (orderId, action) => {
+    setShiprocketLoading(`${orderId}-${action}`)
+    try {
+      let res
+      if (action === 'create') {
+        res = await api.post(`/admin/orders/${orderId}/shiprocket/create`)
+        toast.success('Sent to Shiprocket')
+      } else if (action === 'awb') {
+        res = await api.post(`/admin/orders/${orderId}/shiprocket/assign-awb`)
+        toast.success('AWB assigned')
+      } else if (action === 'label') {
+        res = await api.get(`/admin/orders/${orderId}/shiprocket/label`)
+        if (res.data.labelUrl) window.open(res.data.labelUrl, '_blank')
+        toast.success('Label ready')
+      } else if (action === 'sync') {
+        res = await api.post(`/admin/orders/${orderId}/shiprocket/sync-tracking`)
+        toast.success('Tracking synced')
+      }
+      if (res?.data?.order) {
+        setOrders(prev => prev.map(o => o.orderId === orderId ? res.data.order : o))
+      } else {
+        fetchOrders()
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Shiprocket action failed')
+    } finally {
+      setShiprocketLoading(null)
     }
   }
 
@@ -142,6 +192,56 @@ export default function AdminOrders() {
                           <p className="mt-2 text-gray-600">
                             Ship to: {order.shippingAddress?.name}, {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.pincode} | {order.shippingAddress?.phone}
                           </p>
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <p className="font-semibold mb-2">Shiprocket</p>
+                            {order.shiprocket?.orderId ? (
+                              <div className="space-y-1 text-gray-600">
+                                <p>SR Order: {order.shiprocket.orderId} | Shipment: {order.shiprocket.shipmentId || '—'}</p>
+                                <p>AWB: {order.shiprocket.awb || 'Not assigned'} {order.shiprocket.courier && `(${order.shiprocket.courier})`}</p>
+                                <p>Status: {order.shiprocket.status || '—'}</p>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500">{shiprocketStatusMessage(order)}</p>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {canCreateShiprocket(order) && (
+                                <button
+                                  onClick={() => handleShiprocket(order.orderId, 'create')}
+                                  disabled={!!shiprocketLoading}
+                                  className="px-2 py-1 border border-gray-300 text-xs hover:border-black disabled:opacity-50"
+                                >
+                                  {shiprocketLoading === `${order.orderId}-create` ? 'Sending…' : 'Create Shipment'}
+                                </button>
+                              )}
+                              {order.shiprocket?.shipmentId && !order.shiprocket?.awb && (
+                                <button
+                                  onClick={() => handleShiprocket(order.orderId, 'awb')}
+                                  disabled={!!shiprocketLoading}
+                                  className="px-2 py-1 border border-gray-300 text-xs hover:border-black disabled:opacity-50"
+                                >
+                                  {shiprocketLoading === `${order.orderId}-awb` ? 'Assigning…' : 'Assign AWB'}
+                                </button>
+                              )}
+                              {order.shiprocket?.shipmentId && (
+                                <button
+                                  onClick={() => handleShiprocket(order.orderId, 'label')}
+                                  disabled={!!shiprocketLoading}
+                                  className="px-2 py-1 border border-gray-300 text-xs hover:border-black disabled:opacity-50"
+                                >
+                                  {shiprocketLoading === `${order.orderId}-label` ? 'Loading…' : 'Print Label'}
+                                </button>
+                              )}
+                              {order.shiprocket?.awb && (
+                                <button
+                                  onClick={() => handleShiprocket(order.orderId, 'sync')}
+                                  disabled={!!shiprocketLoading}
+                                  className="px-2 py-1 border border-gray-300 text-xs hover:border-black disabled:opacity-50"
+                                >
+                                  {shiprocketLoading === `${order.orderId}-sync` ? 'Syncing…' : 'Sync Tracking'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
                     </tr>

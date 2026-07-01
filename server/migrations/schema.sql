@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS product_images (
 CREATE TABLE IF NOT EXISTS product_sizes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
-  size ENUM('M', 'L', 'XL', 'XXL') NOT NULL,
+  size ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL') NOT NULL,
   stock INT NOT NULL DEFAULT 0,
   UNIQUE KEY unique_product_size (product_id, size),
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
@@ -106,6 +106,13 @@ CREATE TABLE IF NOT EXISTS orders (
   estimated_delivery DATETIME,
   cancellation_reason TEXT,
   notes TEXT,
+  shiprocket_order_id BIGINT,
+  shiprocket_shipment_id BIGINT,
+  shiprocket_awb VARCHAR(50),
+  shiprocket_courier VARCHAR(100),
+  shiprocket_status VARCHAR(50),
+  shiprocket_label_url VARCHAR(500),
+  shiprocket_synced_at DATETIME,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)

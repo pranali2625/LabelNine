@@ -7,6 +7,13 @@ const Order = require('../models/Order');
 const { protect, adminOnly } = require('../middleware/auth');
 const { notifyOrderStatus } = require('../utils/orderNotifications');
 const { restoreOrderStock } = require('../utils/orderStock');
+const {
+  createShiprocketShipment,
+  assignShiprocketAwb,
+  getShiprocketLabel,
+  syncTrackingFromAwb
+} = require('../utils/shiprocketOrders');
+const shiprocket = require('../utils/shiprocket');
 const { storeProductImage, getStorageInfo } = require('../utils/imageUpload');
 const { formatProductImages } = require('../utils/formatImageUrls');
 
@@ -130,6 +137,64 @@ router.patch('/orders/:orderId/status', async (req, res) => {
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/orders/:orderId/shiprocket/create', async (req, res) => {
+  try {
+    const configError = shiprocket.configError();
+    if (configError) {
+      return res.status(503).json({ success: false, message: configError });
+    }
+
+    const order = await Order.findOne({ orderId: req.params.orderId }, { populate: 'user' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const updated = await createShiprocketShipment(order);
+    res.json({ success: true, order: updated, message: 'Order created in Shiprocket' });
+  } catch (err) {
+    console.error('Shiprocket create error:', err.message);
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/orders/:orderId/shiprocket/assign-awb', async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderId: req.params.orderId });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const updated = await assignShiprocketAwb(order, req.body.courierId);
+    res.json({ success: true, order: updated, message: 'AWB assigned' });
+  } catch (err) {
+    console.error('Shiprocket AWB error:', err.message);
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/orders/:orderId/shiprocket/label', async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderId: req.params.orderId });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const { labelUrl } = await getShiprocketLabel(order);
+    if (!labelUrl) {
+      return res.status(404).json({ success: false, message: 'Label not available yet' });
+    }
+    res.json({ success: true, labelUrl });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/orders/:orderId/shiprocket/sync-tracking', async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderId: req.params.orderId });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const result = await syncTrackingFromAwb(order);
+    res.json({ success: true, order: result.order, tracking: result.tracking });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 });
 

@@ -3,7 +3,7 @@ const {
   countSnapshotRows
 } = require('../utils/dbSnapshot');
 
-const ALLOWED_SIZES = new Set(['M', 'L', 'XL', 'XXL']);
+const ALLOWED_SIZES = new Set(['XS', 'S', 'M', 'L', 'XL', 'XXL']);
 const DEFAULT_VARIETY = 'Casual Linen';
 
 function apiProductToSnapshotRows(products) {
@@ -84,7 +84,11 @@ async function pullFromApi({ apiUrl, email, password }) {
         const productsData = await productsRes.json();
 
         if (productsRes.ok && productsData.products?.length) {
-          return { ...apiProductToSnapshotRows(productsData.products), source: 'api-admin' };
+          return {
+            ...apiProductToSnapshotRows(productsData.products),
+            source: 'api-admin',
+            adminToken: loginData.token
+          };
         }
       }
     } catch {

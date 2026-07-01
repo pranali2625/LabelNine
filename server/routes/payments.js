@@ -122,7 +122,11 @@ router.post('/verify', protect, async (req, res) => {
     await order.save();
 
     const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+    const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');
     notifyOrderConfirmed(order, req.user._id);
+    maybeCreateShiprocketOrder(order).catch((err) => {
+      console.error('Shiprocket auto-create:', err.message);
+    });
 
     res.json({ success: true, message: 'Payment verified', order });
   } catch (err) {
@@ -183,7 +187,11 @@ async function webhookHandler(req, res) {
 
         if (order) {
           const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+          const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');
           notifyOrderConfirmed(order, order.user?._id || order.user);
+          maybeCreateShiprocketOrder(order).catch((err) => {
+            console.error('Shiprocket auto-create:', err.message);
+          });
         }
       }
     }

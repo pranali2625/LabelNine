@@ -104,13 +104,12 @@ async function applyMigrations() {
 
   const [sizeCol] = await db.query("SHOW COLUMNS FROM product_sizes LIKE 'size'");
   const sizeType = sizeCol[0]?.Type || '';
-  if (sizeType.includes("'XS'") || sizeType.includes("'S'")) {
-    await db.query("DELETE FROM product_sizes WHERE size IN ('XS', 'S')");
+  if (!sizeType.includes("'XS'") || !sizeType.includes("'S'")) {
     await db.query(`
       ALTER TABLE product_sizes
-      MODIFY COLUMN size ENUM('M', 'L', 'XL', 'XXL') NOT NULL
+      MODIFY COLUMN size ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL') NOT NULL
     `);
-    console.log('Migration applied: removed XS and S from product sizes');
+    console.log('Migration applied: added XS and S to product sizes');
   }
 
   const [varietyCol] = await db.query("SHOW COLUMNS FROM products LIKE 'variety'");
@@ -128,6 +127,21 @@ async function applyMigrations() {
       ) NOT NULL
     `);
     console.log('Migration applied: added Cotton Linen product variety');
+  }
+
+  const [srCol] = await db.query("SHOW COLUMNS FROM orders LIKE 'shiprocket_order_id'");
+  if (!srCol.length) {
+    await db.query(`
+      ALTER TABLE orders
+      ADD COLUMN shiprocket_order_id BIGINT NULL AFTER notes,
+      ADD COLUMN shiprocket_shipment_id BIGINT NULL AFTER shiprocket_order_id,
+      ADD COLUMN shiprocket_awb VARCHAR(50) NULL AFTER shiprocket_shipment_id,
+      ADD COLUMN shiprocket_courier VARCHAR(100) NULL AFTER shiprocket_awb,
+      ADD COLUMN shiprocket_status VARCHAR(50) NULL AFTER shiprocket_courier,
+      ADD COLUMN shiprocket_label_url VARCHAR(500) NULL AFTER shiprocket_status,
+      ADD COLUMN shiprocket_synced_at DATETIME NULL AFTER shiprocket_label_url
+    `);
+    console.log('Migration applied: added Shiprocket columns to orders');
   }
 }
 

@@ -300,7 +300,8 @@ class Order {
     const [rows] = await pool.query(
       `SELECT order_id, order_status, estimated_delivery, delivered_at, created_at,
               shipping_city, shipping_state, items_price, shipping_price, tax_price, total_amount,
-              payment_status, payment_method
+              payment_status, payment_method,
+              shiprocket_awb, shiprocket_courier, shiprocket_status
        FROM orders WHERE order_id = ?`,
       [orderId]
     );
@@ -326,6 +327,9 @@ class Order {
       items: items.map((i) => ({ name: i.name, size: i.size, quantity: i.quantity })),
       totalAmount: Number(row.total_amount),
       paymentInfo: { status: row.payment_status },
+      shiprocket: row.shiprocket_awb
+        ? { awb: row.shiprocket_awb, courier: row.shiprocket_courier, status: row.shiprocket_status }
+        : undefined,
       trackingHistory: tracking.map((t) => ({
         status: t.status,
         message: t.message,

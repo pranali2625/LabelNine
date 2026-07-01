@@ -20,13 +20,45 @@ const TABLE_ORDER = [
 const TRUNCATE_ORDER = [...TABLE_ORDER].reverse();
 
 /** Must match product_sizes.size ENUM in migrations/schema.sql */
-const ALLOWED_SIZES = new Set(['M', 'L', 'XL', 'XXL']);
+const ALLOWED_SIZES = new Set(['XS', 'S', 'M', 'L', 'XL', 'XXL']);
+
+const DATETIME_COLUMNS = new Set([
+  'otp_expire',
+  'reset_password_expire',
+  'created_at',
+  'updated_at',
+  'paid_at',
+  'timestamp'
+]);
+
+function toMysqlDatetime(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  return value;
+}
 
 function sanitizeRowForImport(table, row) {
   if (table === 'product_sizes' && !ALLOWED_SIZES.has(row.size)) {
     return null;
   }
-  return row;
+
+  const sanitized = { ...row };
+  for (const [key, value] of Object.entries(sanitized)) {
+    const isDatetimeCol = DATETIME_COLUMNS.has(key)
+      || key.endsWith('_at')
+      || key.endsWith('_expire');
+    if (isDatetimeCol || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value))) {
+      sanitized[key] = toMysqlDatetime(value);
+    }
+  }
+  return sanitized;
 }
 
 async function exportDatabase(connection) {

@@ -101,6 +101,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/logistics', require('./routes/logistics'));
 
 function getDeployVersion() {
   try {

@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
       return { success: true, user: data.user }
     } catch (err) {
       const msg = err.response?.data?.message || 'Login failed'
-      toast.error(msg)
+      toast.error(msg, { id: 'auth-login-error' })
       return { success: false }
     } finally {
       setLoading(false)

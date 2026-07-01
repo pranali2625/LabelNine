@@ -145,6 +145,18 @@ export default function OrderDetail() {
         </div>
 
         {/* Tracking */}
+        {order.shiprocket?.awb && (
+          <div className="border border-gray-200 p-5 mb-6">
+            <h3 className="font-bold text-sm tracking-wider mb-2">SHIPMENT</h3>
+            <p className="text-sm text-gray-600">
+              AWB: <span className="font-mono font-medium text-black">{order.shiprocket.awb}</span>
+              {order.shiprocket.courier && <span className="ml-2">via {order.shiprocket.courier}</span>}
+            </p>
+            {order.shiprocket.status && (
+              <p className="text-xs text-gray-500 mt-1 capitalize">{order.shiprocket.status.toLowerCase()}</p>
+            )}
+          </div>
+        )}
         {order.trackingHistory?.length > 0 && (
           <div className="border border-gray-200 p-6">
             <h3 className="font-bold text-sm tracking-wider mb-4">TRACKING HISTORY</h3>

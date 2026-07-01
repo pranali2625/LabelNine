@@ -139,6 +139,17 @@ const formatOrder = (row, items = [], tracking = [], user = null) => {
     estimatedDelivery: row.estimated_delivery || undefined,
     cancellationReason: row.cancellation_reason || undefined,
     notes: row.notes || undefined,
+    shiprocket: row.shiprocket_order_id
+      ? {
+          orderId: row.shiprocket_order_id,
+          shipmentId: row.shiprocket_shipment_id || undefined,
+          awb: row.shiprocket_awb || undefined,
+          courier: row.shiprocket_courier || undefined,
+          status: row.shiprocket_status || undefined,
+          labelUrl: row.shiprocket_label_url || undefined,
+          syncedAt: row.shiprocket_synced_at || undefined
+        }
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

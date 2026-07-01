@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { calculateShipping } from '../constants/pricing'
 
 const CartContext = createContext(null)
 
@@ -61,8 +62,7 @@ export function CartProvider({ children }) {
 
   const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
-  // const shippingCost = cartTotal >= 499 ? 0 : 79
-  const shippingCost = 0 // shipping disabled for now
+  const shippingCost = calculateShipping(cartTotal)
   const tax = 0 // GST disabled for now
   const orderTotal = cartTotal + shippingCost + tax
 

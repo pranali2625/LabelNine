@@ -7,7 +7,7 @@ import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
 
-const AVAILABLE_SIZES = ['M', 'L', 'XL', 'XXL']
+const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 export default function ProductDetail() {
   const { id } = useParams()
