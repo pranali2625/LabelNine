@@ -1,14 +1,11 @@
 import { X } from 'lucide-react'
+import { resolveSizeChart, formatInches } from '../constants/sizeCharts'
 
-const MEASUREMENTS = [
-  { size: 'M', chest: '38–40"', chestCm: '96–102', length: '28"', shoulder: '17"' },
-  { size: 'L', chest: '40–42"', chestCm: '102–107', length: '29"', shoulder: '18"' },
-  { size: 'XL', chest: '42–44"', chestCm: '107–112', length: '30"', shoulder: '19"' },
-  { size: 'XXL', chest: '44–46"', chestCm: '112–117', length: '31"', shoulder: '20"' },
-]
-
-export default function SizeChart({ open, onClose, fit }) {
+export default function SizeChart({ open, onClose, fit, sizeChart }) {
   if (!open) return null
+
+  const chart = resolveSizeChart(sizeChart, fit)
+  const rows = Object.entries(chart.sizes)
 
   return (
     <div
@@ -17,20 +14,23 @@ export default function SizeChart({ open, onClose, fit }) {
     >
       <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
       <div
-        className="relative bg-white w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-lg sm:rounded-none"
+        className="relative bg-white w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-xl sm:rounded-lg shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="size-chart-title"
       >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between">
-          <h2 id="size-chart-title" className="text-sm font-semibold tracking-wider">
-            SIZE GUIDE
-          </h2>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 id="size-chart-title" className="text-sm font-bold tracking-wider">
+              SIZE GUIDE
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">{chart.label}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
             aria-label="Close size guide"
           >
             <X className="w-5 h-5" />
@@ -38,47 +38,45 @@ export default function SizeChart({ open, onClose, fit }) {
         </div>
 
         <div className="p-5 space-y-5">
-          {fit && (
-            <p className="text-sm text-gray-600">
-              This product has a <span className="font-medium text-black">{fit}</span> fit.
-              Measurements below are garment dimensions in inches.
-            </p>
-          )}
+          <p className="text-xs text-gray-500 leading-relaxed">
+            All measurements are garment dimensions in inches. Lay the shirt flat —
+            chest is pit-to-pit, shoulder is seam-to-seam, length is highest shoulder point to hem.
+          </p>
 
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm border-collapse min-w-[320px]">
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-2 font-semibold tracking-wide">Size</th>
-                  <th className="text-left py-2 px-2 font-semibold tracking-wide">Chest</th>
-                  <th className="text-left py-2 px-2 font-semibold tracking-wide hidden sm:table-cell">Chest (cm)</th>
-                  <th className="text-left py-2 px-2 font-semibold tracking-wide">Length</th>
-                  <th className="text-left py-2 px-2 font-semibold tracking-wide">Shoulder</th>
+                <tr className="bg-[#f5f0e8] text-left">
+                  <th className="py-3 px-4 font-semibold text-xs tracking-wide">Size</th>
+                  <th className="py-3 px-3 font-semibold text-xs tracking-wide">Chest</th>
+                  <th className="py-3 px-3 font-semibold text-xs tracking-wide">Shoulder</th>
+                  <th className="py-3 px-4 font-semibold text-xs tracking-wide">Length</th>
                 </tr>
               </thead>
               <tbody>
-                {MEASUREMENTS.map((row) => (
-                  <tr key={row.size} className="border-b border-gray-100">
-                    <td className="py-2.5 px-2 font-medium">{row.size}</td>
-                    <td className="py-2.5 px-2 text-gray-600">{row.chest}</td>
-                    <td className="py-2.5 px-2 text-gray-600 hidden sm:table-cell">{row.chestCm}</td>
-                    <td className="py-2.5 px-2 text-gray-600">{row.length}</td>
-                    <td className="py-2.5 px-2 text-gray-600">{row.shoulder}</td>
+                {rows.map(([size, m], i) => (
+                  <tr
+                    key={size}
+                    className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}
+                  >
+                    <td className="py-3 px-4 font-semibold">{size}</td>
+                    <td className="py-3 px-3 text-gray-700">{formatInches(m.chest)}"</td>
+                    <td className="py-3 px-3 text-gray-700">{formatInches(m.shoulder)}"</td>
+                    <td className="py-3 px-4 text-gray-700">{formatInches(m.length)}"</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="text-xs text-gray-500 space-y-2 leading-relaxed">
-            <p>
-              <span className="font-medium text-gray-700">How to measure:</span> Lay the shirt flat.
-              Chest is measured pit-to-pit and doubled. Length is from the highest shoulder point to the hem.
-            </p>
-            <p>
-              For the best fit, compare these garment measurements with a shirt you already own.
-              If you are between sizes, we recommend sizing up.
-            </p>
+          {/* How to measure — below size table */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+            <img
+              src="/images/how-to-measure.png"
+              alt="How to measure a shirt: across shoulder, chest, and front length"
+              className="w-full h-auto block"
+              loading="lazy"
+            />
           </div>
         </div>
       </div>

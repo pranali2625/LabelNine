@@ -143,6 +143,15 @@ async function applyMigrations() {
     `);
     console.log('Migration applied: added Shiprocket columns to orders');
   }
+
+  const [sizeChartCol] = await db.query("SHOW COLUMNS FROM products LIKE 'size_chart'");
+  if (!sizeChartCol.length) {
+    await db.query(`
+      ALTER TABLE products
+      ADD COLUMN size_chart JSON NULL AFTER care
+    `);
+    console.log('Migration applied: added size_chart to products');
+  }
 }
 
 module.exports = {

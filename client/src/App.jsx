@@ -25,6 +25,7 @@ import Policies from './pages/Policies'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import ReturnRefundPolicy from './pages/ReturnRefundPolicy'
 import TermsOfService from './pages/TermsOfService'
+import Contact from './pages/Contact'
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard'
@@ -45,11 +46,7 @@ function App() {
             <Route path="cart" element={<Cart />} />
             <Route path="about" element={<About />} />
             <Route path="help/policies" element={<Policies />} />
-            <Route path="help/privacy" element={<PrivacyPolicy />} />
             <Route path="help/returns" element={<ReturnRefundPolicy />} />
-            <Route path="help/terms" element={<TermsOfService />} />
-            <Route path="track" element={<OrderTracking />} />
-            <Route path="track/:orderId" element={<OrderTracking />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
@@ -60,6 +57,11 @@ function App() {
               <Route path="account" element={<Account />} />
               <Route path="account/orders" element={<MyOrders />} />
               <Route path="account/orders/:orderId" element={<OrderDetail />} />
+              <Route path="contact" element={<Contact />} />
+              <Route path="track" element={<OrderTracking />} />
+              <Route path="track/:orderId" element={<OrderTracking />} />
+              <Route path="help/privacy" element={<PrivacyPolicy />} />
+              <Route path="help/terms" element={<TermsOfService />} />
             </Route>
           </Route>
           <Route element={<AdminRoute />}>

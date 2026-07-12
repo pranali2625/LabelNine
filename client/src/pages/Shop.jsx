@@ -4,7 +4,7 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const SIZES = ['M', 'L', 'XL', 'XXL']
 const SORTS = [
   { value: 'newest', label: 'Newest First' },
   { value: 'price_asc', label: 'Price: Low to High' },

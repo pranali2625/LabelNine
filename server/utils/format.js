@@ -48,6 +48,7 @@ const formatProduct = (row, images = [], sizes = []) => {
   if (!row) return null;
   const care = parseJsonField(row.care, []);
   const tags = parseJsonField(row.tags, []);
+  const sizeChart = parseJsonField(row.size_chart, null);
   const sizeList = sizes.map((s) => ({ size: s.size, stock: s.stock }));
   return {
     _id: String(row.id),
@@ -64,6 +65,9 @@ const formatProduct = (row, images = [], sizes = []) => {
     fit: row.fit || undefined,
     color: row.color || undefined,
     care,
+    sizeChart: sizeChart && typeof sizeChart === 'object' && !Array.isArray(sizeChart)
+      ? sizeChart
+      : undefined,
     isActive: toBool(row.is_active),
     isFeatured: toBool(row.is_featured),
     ratings: Number(row.ratings),

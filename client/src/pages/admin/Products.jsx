@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Plus, Edit2, Trash2, Package, X, Check, ImagePlus, Trash, Upload } from 'lucide-react'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import { CHART_SIZES, emptySizeChartForm, sizeChartToForm, formToSizeChart } from '../../constants/sizeCharts'
 
 const VARIETIES = ['Classic White Formal', 'Oxford Button-Down', 'Slim Fit Solid', 'Casual Linen', 'Cotton Linen', 'Printed Heritage']
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const SIZES = ['M', 'L', 'XL', 'XXL']
 const FITS = ['Regular', 'Slim', 'Relaxed', 'Oversized']
 
 const emptyProduct = {
@@ -12,6 +13,7 @@ const emptyProduct = {
   fabric: '', fit: 'Regular', color: '',
   images: [{ url: '' }],
   sizes: SIZES.map(s => ({ size: s, stock: 0 })),
+  sizeChartForm: emptySizeChartForm('Regular'),
   isFeatured: false, isActive: true
 }
 
@@ -43,7 +45,8 @@ export default function AdminProducts() {
       sizes: SIZES.map(s => {
         const existing = p.sizes.find(x => x.size === s)
         return { size: s, stock: existing?.stock || 0 }
-      })
+      }),
+      sizeChartForm: sizeChartToForm(p.sizeChart, p.fit || 'Regular')
     })
     setModal('edit')
   }
@@ -52,6 +55,36 @@ export default function AdminProducts() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+  }
+
+  const handleSizeChartChange = (size, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      sizeChartForm: {
+        ...prev.sizeChartForm,
+        [size]: {
+          ...prev.sizeChartForm[size],
+          [field]: value
+        }
+      }
+    }))
+  }
+
+  const loadFitTemplate = () => {
+    setForm(prev => ({
+      ...prev,
+      sizeChartForm: emptySizeChartForm(prev.fit || 'Regular')
+    }))
+    toast.success(`Loaded ${form.fit || 'Regular'} fit template`)
+  }
+
+  const clearSizeChart = () => {
+    setForm(prev => ({
+      ...prev,
+      sizeChartForm: Object.fromEntries(
+        CHART_SIZES.map(s => [s, { chest: '', shoulder: '', length: '' }])
+      )
+    }))
   }
 
   const handleStockChange = (size, stock) => {
@@ -117,6 +150,7 @@ export default function AdminProducts() {
         color: form.color || null,
         care: form.care || [],
         tags: form.tags || [],
+        sizeChart: formToSizeChart(form.sizeChartForm),
         images: form.images.filter(i => i.url),
         sizes: form.sizes,
         isFeatured: !!form.isFeatured,
@@ -358,6 +392,65 @@ export default function AdminProducts() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div>
+                        <label className="block text-xs font-semibold tracking-wider text-gray-600">SIZE CHART (inches)</label>
+                        <p className="text-xs text-gray-400 mt-0.5">Per-product measurements shown when a customer selects a size</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={loadFitTemplate}
+                          className="text-xs border border-gray-300 px-2.5 py-1.5 hover:border-black transition-colors"
+                        >
+                          Load {form.fit || 'Regular'} template
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSizeChart}
+                          className="text-xs border border-gray-300 px-2.5 py-1.5 text-gray-500 hover:border-black hover:text-black transition-colors"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto border border-gray-200">
+                      <table className="w-full text-sm min-w-[420px]">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-3 py-2 text-xs font-semibold tracking-wider">Size</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold tracking-wider">Chest</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold tracking-wider">Shoulder</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold tracking-wider">Length</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {CHART_SIZES.map((size) => (
+                            <tr key={size} className="border-b border-gray-100 last:border-0">
+                              <td className="px-3 py-2 font-semibold">{size}</td>
+                              {['chest', 'shoulder', 'length'].map((field) => (
+                                <td key={field} className="px-2 py-1.5">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={form.sizeChartForm?.[size]?.[field] ?? ''}
+                                    onChange={(e) => handleSizeChartChange(size, field, e.target.value)}
+                                    placeholder="—"
+                                    className="w-full border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:border-black"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Leave blank to fall back to the default {form.fit || 'Regular'} fit chart on the storefront.
+                    </p>
                   </div>
                 </>
               ) : (

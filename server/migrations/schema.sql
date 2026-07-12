@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS products (
   fit ENUM('Regular', 'Slim', 'Relaxed', 'Oversized'),
   color VARCHAR(100),
   care JSON,
+  size_chart JSON,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
   ratings DECIMAL(3, 2) NOT NULL DEFAULT 0,

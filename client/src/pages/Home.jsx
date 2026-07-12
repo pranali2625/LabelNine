@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, RotateCcw } from 'lucide-react'
+import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, Banknote } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
+
+const CAMPAIGN_SLIDES = [
+  {
+    src: '/uploads/products/IMG-20260710-WA0001.jpg',
+    alt: 'Label Nine — Made for Every Moment',
+  },
+  {
+    src: '/uploads/products/IMG-20260710-WA0005.jpg',
+    alt: 'Label Nine — Classy Collection',
+  },
+]
 
 const OUR_STORY_IMAGES = [
   { src: '/images/our-story.png', alt: 'Precision fabric cutting' },
@@ -14,15 +25,15 @@ const OUR_STORY_IMAGES = [
 
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
-  // 'CASH ON DELIVERY',
+  'CASH ON DELIVERY',
   'EASY 7-DAY RETURNS',
   'CRAFTED WITH CARE',
 ]
 
 const TRUST_BADGES = [
   { Icon: Truck, title: 'MAHARASHTRA DELIVERY', subtitle: 'Delivered across Maharashtra' },
-  // { Icon: Shield, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
   { Icon: RotateCcw, title: 'EASY RETURNS', subtitle: '7-day hassle-free returns' },
+  { Icon: Banknote, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
 ]
 
 export default function Home() {
@@ -154,7 +165,7 @@ export default function Home() {
       {/* Trust badges */}
       <section className="border-t border-b border-gray-200 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto sm:max-w-none">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto sm:max-w-none">
             {TRUST_BADGES.map((badge) => (
               <div key={badge.title} className="flex items-center gap-3 justify-center sm:justify-start">
                 <badge.Icon className="w-8 h-8 flex-shrink-0" />
@@ -167,6 +178,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Campaign slider — before collection CTA; full image, no crop */}
+      <CampaignSlider />
 
       {/* Shop CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center">
@@ -183,6 +197,93 @@ export default function Home() {
         </Link>
       </section>
     </div>
+  )
+}
+
+function CampaignSlider() {
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const total = CAMPAIGN_SLIDES.length
+
+  useEffect(() => {
+    if (paused || total <= 1) return
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % total)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [paused, total])
+
+  const go = (next) => setIndex((next + total) % total)
+
+  return (
+    <section
+      aria-label="Label Nine campaign"
+      className="relative bg-[#111]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Natural image height — no aspect crop */}
+      <div className="relative w-full">
+        {CAMPAIGN_SLIDES.map((slide, i) => (
+          <div
+            key={slide.src}
+            aria-hidden={i !== index}
+            className={
+              i === index
+                ? 'relative z-[1]'
+                : 'absolute inset-x-0 top-0 z-0 opacity-0 pointer-events-none'
+            }
+          >
+            <Link
+              to="/shop"
+              tabIndex={i === index ? 0 : -1}
+              className={`block transition-opacity duration-700 ease-in-out ${
+                i === index ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                className="w-full h-auto block"
+                loading={i === 0 ? 'eager' : 'lazy'}
+              />
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        aria-label="Previous slide"
+        onClick={() => go(index - 1)}
+        className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-[2] w-10 h-10 flex items-center justify-center bg-black/35 text-white hover:bg-black/55 transition-colors"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Next slide"
+        onClick={() => go(index + 1)}
+        className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-[2] w-10 h-10 flex items-center justify-center bg-black/35 text-white hover:bg-black/55 transition-colors"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[2] flex gap-2">
+        {CAMPAIGN_SLIDES.map((slide, i) => (
+          <button
+            key={slide.src}
+            type="button"
+            aria-label={`Go to slide ${i + 1}`}
+            aria-current={i === index}
+            onClick={() => setIndex(i)}
+            className={`h-1.5 rounded-full transition-all ${
+              i === index ? 'w-8 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/80'
+            }`}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 

@@ -16,6 +16,7 @@ export default function ImageSlideshow({
   showArrows = true,
   showDots = false,
   className = '',
+  aspectClass = 'aspect-[3/4]',
   imgClassName = 'w-full h-full object-cover',
   pauseOnHover = true,
   enableSwipe = true,
@@ -144,7 +145,7 @@ export default function ImageSlideshow({
     <div className={className}>
       <div
         ref={containerRef}
-        className="relative bg-gray-100 aspect-[3/4] overflow-hidden touch-pan-y select-none"
+        className={`relative bg-gray-100 overflow-hidden touch-pan-y select-none ${aspectClass}`}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onClickCapture={handleClickCapture}

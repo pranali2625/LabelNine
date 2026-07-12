@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { openRazorpayCheckout } from '../utils/razorpay'
-import { CreditCard, Smartphone, Truck } from 'lucide-react'
+import { CreditCard, Smartphone, Truck, Banknote } from 'lucide-react'
 import { DELIVERY_STATE, MAHARASHTRA_CITIES, validateShippingAddress } from '../constants/maharashtra'
 
 export default function Checkout() {
@@ -82,12 +82,12 @@ export default function Checkout() {
   }
 
   const paymentOptions = [
-    // {
-    //   id: 'COD',
-    //   icon: Banknote,
-    //   title: 'Cash on Delivery (COD)',
-    //   description: 'Pay in cash when your order is delivered at your doorstep'
-    // },
+    {
+      id: 'COD',
+      icon: Banknote,
+      title: 'Cash on Delivery (COD)',
+      description: 'Pay in cash when your order is delivered at your doorstep'
+    },
     {
       id: 'RAZORPAY',
       icon: Smartphone,
@@ -232,10 +232,9 @@ export default function Checkout() {
                     : `PLACE ORDER • ₹${orderTotal}`}
               </button>
               <p className="text-xs text-center text-gray-500 mt-3">
-                {/* {paymentMethod === 'COD'
+                {paymentMethod === 'COD'
                   ? `You will pay ₹${orderTotal} in cash on delivery`
-                  : 'You will be redirected to Razorpay to complete payment'} */}
-                You will be redirected to Razorpay to complete payment
+                  : 'You will be redirected to Razorpay to complete payment'}
               </p>
             </div>
           </div>

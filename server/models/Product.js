@@ -25,6 +25,33 @@ const PRODUCT_SCALAR_FIELDS = [
   'fabric', 'fit', 'color', 'isActive', 'isFeatured'
 ];
 
+const CHART_SIZES = ['M', 'L', 'XL', 'XXL'];
+
+const normalizeSizeChart = (value) => {
+  if (value == null || value === '') return null;
+  let chart = value;
+  if (typeof value === 'string') {
+    try {
+      chart = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!chart || typeof chart !== 'object' || Array.isArray(chart)) return null;
+
+  const normalized = {};
+  for (const size of CHART_SIZES) {
+    const row = chart[size];
+    if (!row || typeof row !== 'object') continue;
+    const chest = row.chest != null && String(row.chest).trim() !== '' ? String(row.chest).trim() : '';
+    const shoulder = row.shoulder != null && String(row.shoulder).trim() !== '' ? String(row.shoulder).trim() : '';
+    const length = row.length != null && String(row.length).trim() !== '' ? String(row.length).trim() : '';
+    if (!chest && !shoulder && !length) continue;
+    normalized[size] = { chest, shoulder, length };
+  }
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 const pickProductScalars = (source, updates = {}) => {
   const data = {};
   for (const field of PRODUCT_SCALAR_FIELDS) {
@@ -32,6 +59,9 @@ const pickProductScalars = (source, updates = {}) => {
   }
   data.care = toJsonArray(updates.care !== undefined ? updates.care : source.care);
   data.tags = toJsonArray(updates.tags !== undefined ? updates.tags : source.tags);
+  data.sizeChart = normalizeSizeChart(
+    updates.sizeChart !== undefined ? updates.sizeChart : source.sizeChart
+  );
   data.price = Number(data.price);
   data.discountedPrice = data.discountedPrice == null || data.discountedPrice === ''
     ? null
@@ -54,7 +84,7 @@ class Product {
     const data = pickProductScalars(this, {});
     await pool.query(
       `UPDATE products SET name=?, slug=?, variety=?, description=?, price=?, discounted_price=?,
-       fabric=?, fit=?, color=?, care=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
+       fabric=?, fit=?, color=?, care=?, size_chart=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
        WHERE id=?`,
       [
         data.name,
@@ -67,6 +97,7 @@ class Product {
         data.fit || null,
         data.color || null,
         JSON.stringify(data.care),
+        data.sizeChart ? JSON.stringify(data.sizeChart) : null,
         toBool(data.isActive) ? 1 : 0,
         toBool(data.isFeatured) ? 1 : 0,
         JSON.stringify(data.tags),
@@ -255,9 +286,10 @@ class Product {
 
   static async create(data) {
     const slug = data.slug || generateSlug(data.name);
+    const sizeChart = normalizeSizeChart(data.sizeChart);
     const [result] = await pool.query(
-      `INSERT INTO products (name, slug, variety, description, price, discounted_price, fabric, fit, color, care, is_active, is_featured, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (name, slug, variety, description, price, discounted_price, fabric, fit, color, care, size_chart, is_active, is_featured, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.name,
         slug,
@@ -269,6 +301,7 @@ class Product {
         data.fit || null,
         data.color || null,
         JSON.stringify(data.care || []),
+        sizeChart ? JSON.stringify(sizeChart) : null,
         data.isActive !== false ? 1 : 0,
         data.isFeatured ? 1 : 0,
         JSON.stringify(data.tags || [])
@@ -303,7 +336,7 @@ class Product {
 
     const [result] = await pool.query(
       `UPDATE products SET name=?, slug=?, variety=?, description=?, price=?, discounted_price=?,
-       fabric=?, fit=?, color=?, care=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
+       fabric=?, fit=?, color=?, care=?, size_chart=?, is_active=?, is_featured=?, tags=?, updated_at=NOW()
        WHERE id=?`,
       [
         data.name,
@@ -316,6 +349,7 @@ class Product {
         data.fit || null,
         data.color || null,
         JSON.stringify(data.care),
+        data.sizeChart ? JSON.stringify(data.sizeChart) : null,
         toBool(data.isActive) ? 1 : 0,
         toBool(data.isFeatured) ? 1 : 0,
         JSON.stringify(data.tags),

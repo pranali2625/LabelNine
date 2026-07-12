@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag } from 'lucide-react'
 import ImageSlideshow from '../components/ImageSlideshow'
 import SizeChart from '../components/SizeChart'
+// import SizeSelector, { AVAILABLE_SIZES } from '../components/SizeSelector'
+import { AVAILABLE_SIZES } from '../components/SizeSelector'
 import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
-
-const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -24,7 +24,15 @@ export default function ProductDetail() {
       .then(res => setProduct(res.data.product))
       .catch(() => navigate('/shop'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, navigate])
+
+  useEffect(() => {
+    if (!product) return
+    const firstAvailable = product.sizes.find(
+      ({ size, stock }) => AVAILABLE_SIZES.includes(size) && stock > 0
+    )
+    setSelectedSize(firstAvailable?.size || '')
+  }, [product])
 
   const handleAddToCart = () => {
     if (!selectedSize) {
@@ -74,15 +82,15 @@ export default function ProductDetail() {
           autoPlay
           showThumbnails
           showDots
+          aspectClass=""
+          imgClassName="w-full h-auto block"
         />
 
-        {/* Details */}
         <div className="pt-2">
           <p className="text-xs text-gray-500 tracking-[0.2em] mb-2">{product.variety}</p>
           <h1 className="text-2xl md:text-3xl font-bold mb-3">{product.name}</h1>
 
-          {/* Price */}
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-6">
             <span className="text-2xl font-bold">₹{displayPrice}</span>
             {product.discountedPrice && (
               <>
@@ -92,14 +100,24 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Size selection */}
+          {/* Measurement size section — temporarily commented out
+          <SizeSelector
+            sizes={product.sizes}
+            fit={product.fit}
+            sizeChart={product.sizeChart}
+            selectedSize={selectedSize}
+            onSelectSize={setSelectedSize}
+            onOpenSizeGuide={() => setSizeChartOpen(true)}
+          />
+          */}
+
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold tracking-wider">SELECT SIZE</h3>
+              <h3 className="text-sm font-bold tracking-wider">SIZES</h3>
               <button
                 type="button"
                 onClick={() => setSizeChartOpen(true)}
-                className="text-xs text-gray-600 underline underline-offset-2 hover:text-black transition-colors"
+                className="text-xs text-gray-500 underline underline-offset-2 hover:text-black transition-colors"
               >
                 Size Guide
               </button>
@@ -108,22 +126,22 @@ export default function ProductDetail() {
               {product.sizes
                 .filter(({ size }) => AVAILABLE_SIZES.includes(size))
                 .map(({ size, stock }) => (
-                <button
-                  key={size}
-                  disabled={stock === 0}
-                  onClick={() => setSelectedSize(size)}
-                  className={`w-12 h-12 text-sm font-medium border transition-all relative
-                    ${stock === 0 ? 'border-gray-200 text-gray-300 cursor-not-allowed line-through' : ''}
-                    ${selectedSize === size ? 'bg-black text-white border-black' : stock > 0 ? 'border-gray-300 hover:border-black' : ''}
-                  `}
-                >
-                  {size}
-                </button>
-              ))}
+                  <button
+                    key={size}
+                    type="button"
+                    disabled={stock === 0}
+                    onClick={() => setSelectedSize(size)}
+                    className={`w-12 h-12 text-sm font-medium border transition-all
+                      ${stock === 0 ? 'border-gray-200 text-gray-300 cursor-not-allowed line-through' : ''}
+                      ${selectedSize === size ? 'bg-black text-white border-black' : stock > 0 ? 'border-gray-300 hover:border-black' : ''}
+                    `}
+                  >
+                    {size}
+                  </button>
+                ))}
             </div>
           </div>
 
-          {/* CTA buttons */}
           <div className="space-y-3 mb-8">
             <button onClick={handleBuyNow} className="w-full bg-black text-white py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors">
               BUY NOW
@@ -133,11 +151,10 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {/* Product info */}
           <div className="space-y-4 border-t border-gray-200 pt-6">
             <div>
               <h3 className="text-sm font-semibold tracking-wider mb-2">DESCRIPTION</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">{product.description}</p>
+              <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{product.description}</p>
             </div>
             {product.fabric && (
               <div>
@@ -161,6 +178,7 @@ export default function ProductDetail() {
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
         fit={product.fit}
+        sizeChart={product.sizeChart}
       />
     </div>
   )
