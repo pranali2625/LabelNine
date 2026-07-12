@@ -4,71 +4,64 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
-import { openRazorpayCheckout } from '../utils/razorpay'
-import { CreditCard, Smartphone, Truck, Banknote } from 'lucide-react'
-import { DELIVERY_STATE, MAHARASHTRA_CITIES, validateShippingAddress } from '../constants/maharashtra'
+import { openMagicCheckout } from '../utils/razorpay'
+import { ShieldCheck, Banknote, Smartphone } from 'lucide-react'
 
 export default function Checkout() {
   const navigate = useNavigate()
   const { items, cartTotal, orderTotal, shippingCost, clearCart } = useCart()
   const { user } = useAuth()
-
-  const [address, setAddress] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    line1: '', line2: '', city: '', state: DELIVERY_STATE, pincode: ''
-  })
-  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY')
   const [loading, setLoading] = useState(false)
 
-  const handleAddressChange = (e) => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }))
-
-  const startRazorpay = async (order) => {
-    await openRazorpayCheckout({
-      order,
-      user,
-      shippingAddress: address,
-      onSuccess: () => {
-        clearCart()
-        navigate(`/order-success/${order.orderId}`)
-      },
-      onDismiss: () => navigate(`/account/orders/${order.orderId}`)
-    })
+  const abandonUnpaidOrder = async (orderId) => {
+    try {
+      await api.patch(`/orders/${orderId}/cancel`, {
+        reason: 'Payment not completed',
+        abandonedPayment: true
+      })
+    } catch {
+      // keep checkout usable
+    }
   }
 
-  const handlePlaceOrder = async (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault()
-    if (!address.name || !address.phone || !address.line1 || !address.city || !address.state || !address.pincode) {
-      toast.error('Please fill in all required address fields')
+
+    const contact = {
+      name: user?.name || '',
+      phone: String(user?.phone || '').replace(/\D/g, '').slice(-10),
+      email: user?.email || ''
+    }
+
+    if (!contact.name?.trim()) {
+      toast.error('Please update your name in Account settings')
       return
     }
-    if (!/^[6-9]\d{9}$/.test(address.phone)) {
-      toast.error('Please enter a valid 10-digit mobile number')
-      return
-    }
-    const addressCheck = validateShippingAddress(address)
-    if (!addressCheck.valid) {
-      toast.error(addressCheck.message)
+    if (!/^[6-9]\d{9}$/.test(contact.phone)) {
+      toast.error('Please update your mobile number in Account settings')
       return
     }
 
     setLoading(true)
     try {
-      const { data: orderData } = await api.post('/orders', {
-        items: items.map(i => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
-        shippingAddress: address,
-        paymentMethod
+      // Open Magic Checkout — customer picks Pay Online or COD inside Razorpay
+      const order = await openMagicCheckout({
+        items,
+        user,
+        contact,
+        paymentMethod: 'RAZORPAY',
+        onSuccess: (confirmed) => {
+          clearCart()
+          navigate(`/order-success/${confirmed.orderId}`)
+        },
+        onDismiss: async (draftOrder) => {
+          if (draftOrder?.orderId) {
+            await abandonUnpaidOrder(draftOrder.orderId)
+          }
+          toast.error('Checkout cancelled. No order was placed.')
+        }
       })
-      const order = orderData.order
-
-      if (paymentMethod === 'RAZORPAY') {
-        setLoading(false)
-        await startRazorpay(order)
-        return
-      }
-
-      clearCart()
-      navigate(`/order-success/${order.orderId}`)
+      if (!order) return
     } catch (err) {
       toast.error(err.response?.data?.message || 'Something went wrong. Please try again.')
     } finally {
@@ -81,115 +74,47 @@ export default function Checkout() {
     return null
   }
 
-  const paymentOptions = [
-    {
-      id: 'COD',
-      icon: Banknote,
-      title: 'Cash on Delivery (COD)',
-      description: 'Pay in cash when your order is delivered at your doorstep'
-    },
-    {
-      id: 'RAZORPAY',
-      icon: Smartphone,
-      title: 'Pay Online (UPI / Cards / Netbanking)',
-      description: 'Secure payment via Razorpay — UPI, debit/credit cards, wallets'
-    }
-  ]
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-      <h1 className="text-2xl font-bold mb-8">Checkout</h1>
-      <form onSubmit={handlePlaceOrder}>
+      <h1 className="text-2xl font-bold mb-2">Checkout</h1>
+      <p className="text-sm text-gray-500 mb-8">
+        Delivery address and payment (UPI, cards, or cash on delivery) are collected in the next step. Maharashtra only.
+      </p>
+
+      <form onSubmit={handleCheckout}>
         <div className="grid lg:grid-cols-3 gap-10">
-          {/* Delivery address */}
           <div className="lg:col-span-2 space-y-6">
             <div className="border border-gray-200 p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Truck className="w-5 h-5" />
-                <h2 className="font-bold tracking-wide">DELIVERY ADDRESS</h2>
-              </div>
-              <p className="text-xs text-gray-500 mb-4">Delivery available in Maharashtra only</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">FULL NAME *</label>
-                  <input name="name" value={address.name} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="Full name" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">MOBILE NUMBER *</label>
-                  <input name="phone" value={address.phone} onChange={handleAddressChange} required maxLength={10} className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="10-digit mobile number" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">ADDRESS LINE 1 *</label>
-                  <input name="line1" value={address.line1} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="House/Flat no., Building name, Street" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">ADDRESS LINE 2</label>
-                  <input name="line2" value={address.line2} onChange={handleAddressChange} className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="Area, Colony, Landmark (optional)" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">CITY *</label>
-                  <select name="city" value={address.city} onChange={handleAddressChange} required className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white">
-                    <option value="">Select City</option>
-                    {MAHARASHTRA_CITIES.map((city) => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">PINCODE *</label>
-                  <input name="pincode" value={address.pincode} onChange={handleAddressChange} required maxLength={6} className="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors" placeholder="Maharashtra pincode" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">STATE *</label>
-                  <input
-                    name="state"
-                    value={DELIVERY_STATE}
-                    readOnly
-                    className="w-full border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Payment method */}
-            <div className="border border-gray-200 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <CreditCard className="w-5 h-5" />
-                <h2 className="font-bold tracking-wide">PAYMENT</h2>
+                <ShieldCheck className="w-5 h-5" />
+                <h2 className="font-bold tracking-wide">PAYMENT &amp; DELIVERY</h2>
               </div>
-              <div className="space-y-3">
-                {paymentOptions.map(({ id, icon: Icon, title, description }) => (
-                  <label
-                    key={id}
-                    className={`flex items-center gap-3 border p-4 cursor-pointer transition-colors ${
-                      paymentMethod === id ? 'border-black bg-black/5' : 'border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value={id}
-                      checked={paymentMethod === id}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="sr-only"
-                    />
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">{title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-                    </div>
-                  </label>
-                ))}
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-start gap-3">
+                  <Smartphone className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-black">Pay online</p>
+                    <p className="text-xs text-gray-500 mt-0.5">UPI, cards, netbanking &amp; wallets</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Banknote className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-black">Cash on Delivery</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Available for Maharashtra pincodes — choose in the next step
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Order summary */}
           <div className="lg:col-span-1">
             <div className="border border-gray-200 p-6 sticky top-24">
               <h2 className="font-bold tracking-wide mb-4">ORDER SUMMARY</h2>
               <div className="space-y-3 mb-4">
-                {items.map(item => (
+                {items.map((item) => (
                   <div key={`${item.productId}-${item.size}`} className="flex gap-3 text-sm">
                     <img src={item.image} alt={item.name} className="w-12 h-16 object-cover bg-gray-100 flex-shrink-0" />
                     <div className="flex-1">
@@ -207,14 +132,13 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className={shippingCost === 0 ? 'text-green-600' : ''}>{shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}</span>
+                  <span className={shippingCost === 0 ? 'text-green-600' : ''}>
+                    {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
+                  </span>
                 </div>
-                {/* GST disabled for now
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST</span>
-                  <span>₹{tax}</span>
-                </div>
-                */}
+                <p className="text-xs text-gray-400">
+                  Final shipping is confirmed for your delivery address.
+                </p>
                 <div className="flex justify-between font-bold text-base border-t pt-2">
                   <span>Total</span>
                   <span>₹{orderTotal}</span>
@@ -225,16 +149,10 @@ export default function Checkout() {
                 disabled={loading}
                 className="w-full bg-black text-white py-4 font-semibold tracking-wide mt-6 hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading
-                  ? 'Placing order...'
-                  : paymentMethod === 'RAZORPAY'
-                    ? `PAY NOW • ₹${orderTotal}`
-                    : `PLACE ORDER • ₹${orderTotal}`}
+                {loading ? 'Please wait...' : `CHECKOUT • ₹${orderTotal}`}
               </button>
               <p className="text-xs text-center text-gray-500 mt-3">
-                {paymentMethod === 'COD'
-                  ? `You will pay ₹${orderTotal} in cash on delivery`
-                  : 'You will be redirected to Razorpay to complete payment'}
+                Choose Pay Online or Cash on Delivery in the next step
               </p>
             </div>
           </div>

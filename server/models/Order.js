@@ -8,19 +8,46 @@ class Order {
 
   async save(conn) {
     const db = conn || pool;
+    const addr = this.shippingAddress || {};
     await db.query(
-      `UPDATE orders SET order_status=?, payment_status=?, razorpay_order_id=?, razorpay_payment_id=?,
-       razorpay_signature=?, paid_at=?, delivered_at=?, cancellation_reason=?, updated_at=NOW()
+      `UPDATE orders SET
+         order_status=?, payment_status=?, payment_method=?,
+         razorpay_order_id=?, razorpay_payment_id=?, razorpay_signature=?,
+         paid_at=?, delivered_at=?, cancellation_reason=?,
+         shipping_name=COALESCE(?, shipping_name),
+         shipping_phone=COALESCE(?, shipping_phone),
+         shipping_line1=COALESCE(?, shipping_line1),
+         shipping_line2=?,
+         shipping_city=COALESCE(?, shipping_city),
+         shipping_state=COALESCE(?, shipping_state),
+         shipping_pincode=COALESCE(?, shipping_pincode),
+         items_price=COALESCE(?, items_price),
+         shipping_price=COALESCE(?, shipping_price),
+         tax_price=COALESCE(?, tax_price),
+         total_amount=COALESCE(?, total_amount),
+         updated_at=NOW()
        WHERE id=?`,
       [
         this.orderStatus,
         this.paymentInfo?.status || 'pending',
+        this.paymentInfo?.method || 'RAZORPAY',
         this.paymentInfo?.razorpayOrderId || null,
         this.paymentInfo?.razorpayPaymentId || null,
         this.paymentInfo?.razorpaySignature || null,
         this.paymentInfo?.paidAt || null,
         this.deliveredAt || null,
         this.cancellationReason || null,
+        addr.name || null,
+        addr.phone || null,
+        addr.line1 || null,
+        addr.line2 ?? null,
+        addr.city || null,
+        addr.state || null,
+        addr.pincode || null,
+        this.itemsPrice ?? null,
+        this.shippingPrice ?? null,
+        this.taxPrice ?? null,
+        this.totalAmount ?? null,
         this.id
       ]
     );
@@ -109,6 +136,10 @@ class Order {
     if (conditions.user) {
       sql += ' AND user_id = ?';
       params.push(conditions.user);
+    }
+    if (conditions['paymentInfo.razorpayOrderId']) {
+      sql += ' AND razorpay_order_id = ?';
+      params.push(conditions['paymentInfo.razorpayOrderId']);
     }
     if (conditions.$or) {
       const parts = [];

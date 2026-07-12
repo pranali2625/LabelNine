@@ -1,18 +1,115 @@
 import api from '../services/api'
 import toast from 'react-hot-toast'
 
-export const loadRazorpay = () => new Promise((resolve) => {
-  if (window.Razorpay) {
-    resolve(true)
-    return
-  }
-  const script = document.createElement('script')
-  script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-  script.onload = () => resolve(true)
-  script.onerror = () => resolve(false)
-  document.body.appendChild(script)
-})
+const STANDARD_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js'
+const MAGIC_SCRIPT = 'https://checkout.razorpay.com/v1/magic-checkout.js'
 
+function loadScript(src) {
+  return new Promise((resolve) => {
+    const existing = document.querySelector(`script[src="${src}"]`)
+    if (existing) {
+      resolve(typeof window.Razorpay === 'function')
+      return
+    }
+    const script = document.createElement('script')
+    script.src = src
+    script.onload = () => resolve(typeof window.Razorpay === 'function')
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+}
+
+export const loadRazorpay = () => loadScript(STANDARD_SCRIPT)
+export const loadMagicCheckout = () => loadScript(MAGIC_SCRIPT)
+
+/**
+ * Magic Checkout — address in Razorpay; COD or prepaid from paymentMethod.
+ */
+export async function openMagicCheckout({
+  items,
+  user,
+  contact,
+  paymentMethod = 'RAZORPAY',
+  onSuccess,
+  onDismiss
+}) {
+  const loaded = await loadMagicCheckout()
+  if (!loaded) {
+    toast.error('Payment gateway failed to load. Please try again.')
+    return false
+  }
+
+  const preferredMethod = paymentMethod === 'COD' ? 'COD' : 'RAZORPAY'
+  const email = contact?.email || user?.email || ''
+  const phone = contact?.phone || user?.phone || ''
+  const name = contact?.name || user?.name || ''
+
+  const { data } = await api.post('/payments/magic/create', {
+    items: items.map((i) => ({
+      productId: i.productId,
+      size: i.size,
+      quantity: i.quantity
+    })),
+    contact: { name, phone, email },
+    paymentMethod: preferredMethod
+  })
+
+  const orderId = data.order.orderId
+  const prefill = {
+    name,
+    email: email || `${phone || 'customer'}@labelnine.in`,
+    contact: phone ? (phone.startsWith('+') ? phone : `+91${phone}`) : ''
+  }
+
+  if (preferredMethod === 'COD') {
+    prefill.method = 'cod'
+  }
+
+  const options = {
+    key: data.keyId,
+    order_id: data.razorpayOrderId,
+    one_click_checkout: true,
+    name: 'Label Nine',
+    show_coupons: true,
+    prefill,
+    theme: { color: '#000000' },
+    handler: async (response) => {
+      try {
+        const { data: complete } = await api.post('/payments/magic/complete', {
+          orderId,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature
+        })
+        toast.success(
+          complete.order?.paymentInfo?.method === 'COD'
+            ? 'Order placed — pay on delivery'
+            : 'Payment successful!'
+        )
+        onSuccess?.(complete.order)
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Could not confirm order')
+      }
+    },
+    modal: {
+      ondismiss: async () => {
+        if (onDismiss) {
+          await onDismiss(data.order)
+        } else {
+          toast.error('Payment cancelled. You can retry anytime.')
+        }
+      }
+    }
+  }
+
+  const rzp = new window.Razorpay(options)
+  rzp.open()
+  return data.order
+}
+
+/**
+ * Standard Razorpay Checkout — retry pay on an existing unpaid order.
+ */
 export async function openRazorpayCheckout({ order, user, shippingAddress, onSuccess, onDismiss }) {
   const loaded = await loadRazorpay()
   if (!loaded) {
@@ -50,9 +147,12 @@ export async function openRazorpayCheckout({ order, user, shippingAddress, onSuc
       }
     },
     modal: {
-      ondismiss: () => {
-        toast.error('Payment cancelled. You can retry anytime.')
-        onDismiss?.()
+      ondismiss: async () => {
+        if (onDismiss) {
+          await onDismiss()
+        } else {
+          toast.error('Payment cancelled. You can retry anytime.')
+        }
       }
     }
   })

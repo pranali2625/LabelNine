@@ -1,10 +1,22 @@
-// Online payments (Razorpay) — routes kept for when prepaid checkout is enabled
+// Razorpay Magic Checkout — create order, shipping/promotions callbacks, verify, webhook
 const express = require('express');
 const router = express.Router();
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
+const { pool } = require('../config/db');
 const { protect } = require('../middleware/auth');
+const { generateOrderId } = require('../utils/helpers');
+const { deductOrderStock } = require('../utils/orderStock');
+const {
+  buildLineItems,
+  lineItemsTotalPaise,
+  fromPaise,
+  mapRazorpayAddress,
+  shippingMethodsForOrder,
+  normalizePhone
+} = require('../utils/magicCheckout');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -23,8 +35,420 @@ function razorpayConfigError() {
   return null;
 }
 
+function verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature) {
+  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+  const expected = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest('hex');
+  return expected === razorpay_signature;
+}
+
+async function fetchRazorpayOrder(razorpayOrderId) {
+  return razorpay.orders.fetch(razorpayOrderId);
+}
+
+function applyRazorpayCustomerDetails(order, rzpOrder) {
+  const details = rzpOrder.customer_details || {};
+  const shipping = mapRazorpayAddress(
+    details.shipping_address || {},
+    details.contact || order.shippingAddress?.phone
+  );
+  order.shippingAddress = shipping;
+
+  const shippingFee = fromPaise(rzpOrder.shipping_fee);
+  const codFee = fromPaise(rzpOrder.cod_fee);
+  order.shippingPrice = shippingFee + codFee;
+  order.taxPrice = fromPaise(rzpOrder.tax_details?.total_tax) || 0;
+  // Prefer Razorpay final amount (includes shipping / COD fee / promotions)
+  if (rzpOrder.amount != null) {
+    order.totalAmount = fromPaise(rzpOrder.amount);
+  } else {
+    order.totalAmount = Number(order.itemsPrice) + Number(order.shippingPrice) + Number(order.taxPrice);
+  }
+}
+
+async function finalizeMagicOrder(order, { rzpOrder, razorpay_payment_id, razorpay_signature, isCod }) {
+  applyRazorpayCustomerDetails(order, rzpOrder);
+  order.paymentInfo = order.paymentInfo || {};
+  order.paymentInfo.razorpayOrderId = rzpOrder.id;
+
+  if (isCod) {
+    order.paymentInfo.method = 'COD';
+    order.paymentInfo.status = 'pending';
+    order.orderStatus = 'confirmed';
+    order.trackingHistory = order.trackingHistory || [];
+    if (!order.trackingHistory.some((t) => t.status === 'confirmed')) {
+      order.trackingHistory.push({
+        status: 'confirmed',
+        message: 'Order confirmed via Magic Checkout (Cash on Delivery).',
+        timestamp: new Date()
+      });
+    }
+  } else {
+    order.paymentInfo.method = 'RAZORPAY';
+    order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
+    order.paymentInfo.razorpaySignature = razorpay_signature;
+    order.paymentInfo.status = 'paid';
+    order.paymentInfo.paidAt = new Date();
+    order.orderStatus = 'confirmed';
+    order.trackingHistory = order.trackingHistory || [];
+    if (!order.trackingHistory.some((t) => t.status === 'confirmed')) {
+      order.trackingHistory.push({
+        status: 'confirmed',
+        message: 'Payment received via Magic Checkout. Order confirmed.',
+        timestamp: new Date()
+      });
+    }
+  }
+
+  await order.save();
+
+  const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+  const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');
+  const userId = order.user?._id || order.user;
+  notifyOrderConfirmed(order, userId);
+  if (!isCod) {
+    maybeCreateShiprocketOrder(order).catch((err) => {
+      console.error('Shiprocket auto-create:', err.message);
+    });
+  }
+
+  return Order.findOne({ orderId: order.orderId });
+}
+
+function readMagicBody(req) {
+  // Razorpay may GET or POST; accept JSON body or query
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length) {
+    return req.body;
+  }
+  if (typeof req.body === 'string' && req.body) {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (req.query?.payload) {
+    try {
+      return JSON.parse(req.query.payload);
+    } catch {
+      /* ignore */
+    }
+  }
+  return { ...req.query };
+}
+
+// ─── Public Magic Checkout callbacks (configure these URLs in Razorpay Dashboard) ───
+
+// @route POST|GET /api/payments/magic/shipping-info
+router.all('/magic/shipping-info', async (req, res) => {
+  try {
+    const payload = readMagicBody(req);
+    const receiptId = payload.order_id;
+    const addresses = payload.addresses || [];
+    const rzpOrderKey = payload.razorpay_order_id
+      ? (String(payload.razorpay_order_id).startsWith('order_')
+          ? String(payload.razorpay_order_id)
+          : `order_${payload.razorpay_order_id}`)
+      : null;
+
+    if (!receiptId && !rzpOrderKey) {
+      return res.status(400).json({ error: 'order_id (receipt) is required' });
+    }
+
+    let order = receiptId ? await Order.findOne({ orderId: receiptId }) : null;
+    if (!order && rzpOrderKey) {
+      order = await Order.findOne({ 'paymentInfo.razorpayOrderId': rzpOrderKey });
+    }
+
+    // Fallback: read preferredMethod from Razorpay order notes (same Hostinger DB / live keys)
+    if (!order && rzpOrderKey) {
+      try {
+        const rzpOrder = await razorpay.orders.fetch(rzpOrderKey);
+        if (rzpOrder?.receipt) {
+          order = await Order.findOne({ orderId: rzpOrder.receipt });
+        }
+        if (order && rzpOrder?.notes?.preferredMethod === 'COD') {
+          order.paymentInfo = { ...(order.paymentInfo || {}), method: 'COD' };
+        }
+      } catch (fetchErr) {
+        console.warn('Magic shipping-info: razorpay fetch failed', fetchErr.message);
+      }
+    }
+
+    if (!order) {
+      console.warn('Magic shipping-info: order not found — still enabling COD for MH pincodes', {
+        receiptId,
+        rzpOrderKey
+      });
+      // Don't 404 — Razorpay needs a shipping response with cod:true to show Cash on Delivery
+      return res.json({
+        addresses: shippingMethodsForOrder({ itemsPrice: 0, paymentInfo: { method: 'COD' } }, addresses)
+      });
+    }
+
+    const addressesOut = shippingMethodsForOrder(order, addresses);
+    console.log(
+      'Magic shipping-info',
+      order.orderId,
+      'method=',
+      order.paymentInfo?.method,
+      'cod=',
+      addressesOut.map((a) => a.shipping_methods?.[0]?.cod)
+    );
+    res.json({ addresses: addressesOut });
+  } catch (err) {
+    console.error('Magic shipping-info error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route POST|GET /api/payments/magic/promotions
+router.all('/magic/promotions', async (req, res) => {
+  try {
+    // No store coupons yet — return empty list so Magic Checkout still works
+    res.json({ promotions: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route POST|GET /api/payments/magic/apply-promotion
+router.all('/magic/apply-promotion', async (req, res) => {
+  try {
+    const payload = readMagicBody(req);
+    const code = payload.code;
+    return res.status(400).json({
+      error: {
+        code: 'INVALID_COUPON',
+        description: code
+          ? `Promotion code "${code}" is not valid`
+          : 'No promotion code provided',
+        source: 'business'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Authenticated Magic Checkout ───
+
+// @route POST /api/payments/magic/create
+// @desc  Create local order + Razorpay Magic Checkout order from cart items
+router.post('/magic/create', protect, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const configError = razorpayConfigError();
+    if (configError) {
+      return res.status(503).json({ success: false, message: configError });
+    }
+
+    const { items, contact, paymentMethod = 'RAZORPAY' } = req.body;
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'No items in cart' });
+    }
+
+    const preferredMethod = paymentMethod === 'COD' ? 'COD' : 'RAZORPAY';
+
+    const orderItems = [];
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product || !product.isActive) {
+        return res.status(400).json({ success: false, message: `Product not found: ${item.productId}` });
+      }
+      const sizeEntry = product.sizes.find((s) => s.size === item.size);
+      if (!sizeEntry || sizeEntry.stock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock for ${product.name} (${item.size})`
+        });
+      }
+      orderItems.push({
+        product: product._id,
+        name: product.name,
+        image: product.images[0]?.url || '',
+        size: item.size,
+        quantity: item.quantity,
+        price: product.discountedPrice || product.price
+      });
+    }
+
+    const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    // Shipping is applied inside Magic Checkout via shipping-info callback
+    const shippingPrice = 0;
+    const taxPrice = 0;
+    const totalAmount = itemsPrice;
+    const orderId = generateOrderId();
+    const phone = normalizePhone(contact?.phone || req.user.phone) || '0000000000';
+
+    await conn.beginTransaction();
+
+    const order = await Order.create(
+      {
+        orderId,
+        user: req.user._id,
+        items: orderItems,
+        shippingAddress: {
+          name: (contact?.name || req.user.name || 'Customer').trim(),
+          phone,
+          line1: 'Address will be collected at checkout',
+          line2: '',
+          city: 'Pending',
+          state: 'Maharashtra',
+          pincode: '400001'
+        },
+        itemsPrice,
+        shippingPrice,
+        taxPrice,
+        totalAmount,
+        paymentInfo: { method: preferredMethod, status: 'pending' },
+        orderStatus: 'placed'
+      },
+      conn
+    );
+
+    await deductOrderStock(orderItems, conn);
+
+    const lineItems = buildLineItems(orderItems);
+    const lineTotal = lineItemsTotalPaise(orderItems);
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: lineTotal,
+      currency: 'INR',
+      receipt: orderId,
+      line_items_total: lineTotal,
+      line_items: lineItems,
+      notes: {
+        orderId,
+        userId: req.user._id.toString(),
+        preferredMethod
+      }
+    });
+
+    order.paymentInfo.razorpayOrderId = razorpayOrder.id;
+    await order.save(conn);
+    await conn.commit();
+
+    const savedOrder = await Order.findOne({ orderId });
+
+    res.status(201).json({
+      success: true,
+      order: savedOrder,
+      razorpayOrderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency || 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Magic create error:', err);
+    const razorpayMsg = err?.error?.description || err?.error?.reason;
+    const message =
+      razorpayMsg === 'Authentication failed'
+        ? 'Razorpay authentication failed — check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env'
+        : process.env.NODE_ENV === 'development' && razorpayMsg
+          ? `Payment initiation failed: ${razorpayMsg}`
+          : err.message?.includes('Insufficient stock')
+            ? err.message
+            : 'Failed to start Magic Checkout';
+    const status = err.message?.includes('Insufficient stock') ? 400 : 500;
+    res.status(status).json({ success: false, message });
+  } finally {
+    conn.release();
+  }
+});
+
+// @route POST /api/payments/magic/complete
+// @desc  Finalize Magic Checkout (prepaid signature verify or COD placed order)
+router.post('/magic/complete', protect, async (req, res) => {
+  try {
+    const configError = razorpayConfigError();
+    if (configError) {
+      return res.status(503).json({ success: false, message: configError });
+    }
+
+    const {
+      orderId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    } = req.body;
+
+    if (!orderId || !razorpay_order_id) {
+      return res.status(400).json({ success: false, message: 'orderId and razorpay_order_id are required' });
+    }
+
+    const order = await Order.findOne({ orderId, user: req.user._id });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.orderStatus === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Order was cancelled' });
+    }
+
+    // Already finalized
+    if (
+      order.orderStatus === 'confirmed' &&
+      (order.paymentInfo?.status === 'paid' || order.paymentInfo?.method === 'COD')
+    ) {
+      const shippingPending = order.shippingAddress?.city === 'Pending';
+      if (!shippingPending) {
+        return res.json({ success: true, message: 'Order already confirmed', order });
+      }
+    }
+
+    const rzpOrder = await fetchRazorpayOrder(razorpay_order_id);
+    if (rzpOrder.receipt && rzpOrder.receipt !== orderId) {
+      return res.status(400).json({ success: false, message: 'Order mismatch' });
+    }
+
+    const rzpStatus = String(rzpOrder.status || '').toLowerCase();
+    const isCod = rzpStatus === 'placed' || (!razorpay_payment_id && rzpStatus !== 'paid');
+    const isPaid = rzpStatus === 'paid' || Boolean(razorpay_payment_id && razorpay_signature);
+
+    if (!isCod && !isPaid) {
+      return res.status(400).json({
+        success: false,
+        message: `Unexpected Razorpay order status: ${rzpOrder.status}`
+      });
+    }
+
+    if (!isCod) {
+      if (!razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ success: false, message: 'Missing payment signature' });
+      }
+      if (!verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+        return res.status(400).json({ success: false, message: 'Payment verification failed: invalid signature' });
+      }
+    }
+
+    if (order.paymentInfo?.status === 'paid' && !isCod) {
+      return res.json({ success: true, message: 'Payment already verified', order });
+    }
+
+    const saved = await finalizeMagicOrder(order, {
+      rzpOrder,
+      razorpay_payment_id,
+      razorpay_signature,
+      isCod
+    });
+
+    res.json({
+      success: true,
+      message: isCod ? 'COD order confirmed' : 'Payment verified',
+      order: saved
+    });
+  } catch (err) {
+    console.error('Magic complete error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to complete checkout' });
+  }
+});
+
 // @route POST /api/payments/create-order
-// @desc  Create Razorpay order before payment
+// @desc  Create Razorpay order for prepaid payment (checkout or retry pay)
 router.post('/create-order', protect, async (req, res) => {
   try {
     const configError = razorpayConfigError();
@@ -43,8 +467,13 @@ router.post('/create-order', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Order already paid' });
     }
 
+    if (order.orderStatus === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Order was cancelled' });
+    }
+
+    // Standard Checkout (address + COD/prepaid already chosen on our site)
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(order.totalAmount * 100), // paise
+      amount: Math.round(Number(order.totalAmount) * 100),
       currency: 'INR',
       receipt: order.orderId,
       notes: {
@@ -61,7 +490,8 @@ router.post('/create-order', protect, async (req, res) => {
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID
+      keyId: process.env.RAZORPAY_KEY_ID,
+      order
     });
   } catch (err) {
     console.error('Razorpay order create error:', err);
@@ -77,23 +507,15 @@ router.post('/create-order', protect, async (req, res) => {
 });
 
 // @route POST /api/payments/verify
-// @desc  Verify Razorpay payment signature
+// @desc  Verify prepaid Razorpay payment (legacy + Magic prepaid)
 router.post('/verify', protect, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
 
-    // Verify signature
-    const body = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(body.toString())
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
+    if (!verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
       return res.status(400).json({ success: false, message: 'Payment verification failed: invalid signature' });
     }
 
-    // Update order
     const order = await Order.findOne({ orderId, user: req.user._id });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -107,8 +529,18 @@ router.post('/verify', protect, async (req, res) => {
       });
     }
 
+    let rzpOrder = null;
+    try {
+      rzpOrder = await fetchRazorpayOrder(razorpay_order_id);
+      applyRazorpayCustomerDetails(order, rzpOrder);
+    } catch (fetchErr) {
+      console.warn('Could not fetch Razorpay order for address sync:', fetchErr.message);
+    }
+
+    order.paymentInfo.razorpayOrderId = razorpay_order_id;
     order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
     order.paymentInfo.razorpaySignature = razorpay_signature;
+    order.paymentInfo.method = 'RAZORPAY';
     order.paymentInfo.status = 'paid';
     order.paymentInfo.paidAt = new Date();
     order.orderStatus = 'confirmed';
@@ -128,7 +560,8 @@ router.post('/verify', protect, async (req, res) => {
       console.error('Shiprocket auto-create:', err.message);
     });
 
-    res.json({ success: true, message: 'Payment verified', order });
+    const saved = await Order.findOne({ orderId });
+    res.json({ success: true, message: 'Payment verified', order: saved });
   } catch (err) {
     console.error('Payment verify error:', err);
     res.status(500).json({ success: false, message: err.message });
@@ -136,8 +569,7 @@ router.post('/verify', protect, async (req, res) => {
 });
 
 // @route POST /api/payments/webhook
-// @desc  Razorpay webhook (for async payment events)
-// Registered in index.js before express.json() so the raw body is available for signature verification
+// @desc  Razorpay webhook (payment.captured + payment.pending for COD)
 async function webhookHandler(req, res) {
   try {
     const signature = req.headers['x-razorpay-signature'];
@@ -157,18 +589,44 @@ async function webhookHandler(req, res) {
     }
 
     const event = JSON.parse(req.body);
+    const payment = event.payload?.payment?.entity;
+    const orderIdFromNotes = payment?.notes?.orderId;
 
-    if (event.event === 'payment.captured') {
-      const payment = event.payload.payment.entity;
-      const orderId = payment.notes?.orderId;
+    let orderId = orderIdFromNotes;
+    let rzpOrderId = payment?.order_id;
 
-      if (orderId) {
-        const existing = await Order.findOne({ orderId });
-        if (existing?.paymentInfo?.status === 'paid') {
-          return res.json({ received: true });
-        }
+    // Resolve local order via Razorpay order receipt when notes missing
+    if (!orderId && rzpOrderId) {
+      try {
+        const rzpOrder = await fetchRazorpayOrder(rzpOrderId);
+        orderId = rzpOrder.receipt;
+      } catch (err) {
+        console.warn('Webhook: could not fetch Razorpay order', err.message);
+      }
+    }
 
-        const order = await Order.findOneAndUpdate(
+    if (event.event === 'payment.captured' && orderId) {
+      const existing = await Order.findOne({ orderId });
+      if (existing?.paymentInfo?.status === 'paid') {
+        return res.json({ received: true });
+      }
+
+      let rzpOrder = null;
+      try {
+        rzpOrder = await fetchRazorpayOrder(rzpOrderId || existing?.paymentInfo?.razorpayOrderId);
+      } catch {
+        /* optional */
+      }
+
+      if (existing && rzpOrder) {
+        await finalizeMagicOrder(existing, {
+          rzpOrder,
+          razorpay_payment_id: payment.id,
+          razorpay_signature: null,
+          isCod: false
+        });
+      } else if (existing) {
+        await Order.findOneAndUpdate(
           { orderId },
           {
             'paymentInfo.status': 'paid',
@@ -184,7 +642,7 @@ async function webhookHandler(req, res) {
             }
           }
         );
-
+        const order = await Order.findOne({ orderId });
         if (order) {
           const { notifyOrderConfirmed } = require('../utils/orderNotifications');
           const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');
@@ -196,8 +654,36 @@ async function webhookHandler(req, res) {
       }
     }
 
+    // COD Magic Checkout — payment.pending
+    if (event.event === 'payment.pending' && orderId) {
+      const existing = await Order.findOne({ orderId });
+      if (existing && existing.orderStatus !== 'confirmed' && existing.orderStatus !== 'cancelled') {
+        let rzpOrder = null;
+        try {
+          rzpOrder = await fetchRazorpayOrder(rzpOrderId || existing.paymentInfo?.razorpayOrderId);
+        } catch (err) {
+          console.warn('Webhook COD: fetch order failed', err.message);
+        }
+        if (rzpOrder) {
+          await finalizeMagicOrder(existing, { rzpOrder, isCod: true });
+        } else {
+          existing.paymentInfo.method = 'COD';
+          existing.orderStatus = 'confirmed';
+          existing.trackingHistory.push({
+            status: 'confirmed',
+            message: 'COD order confirmed via webhook',
+            timestamp: new Date()
+          });
+          await existing.save();
+          const { notifyOrderConfirmed } = require('../utils/orderNotifications');
+          notifyOrderConfirmed(existing, existing.user?._id || existing.user);
+        }
+      }
+    }
+
     res.json({ received: true });
   } catch (err) {
+    console.error('Webhook error:', err);
     res.status(500).json({ error: err.message });
   }
 }

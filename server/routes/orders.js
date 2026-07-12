@@ -200,7 +200,16 @@ router.patch('/:id/cancel', protect, async (req, res) => {
 
     await restoreOrderStock(order.items);
     await order.save();
-    notifyOrderCancelled(order, req.user._id);
+
+    // Silent cancel when user closes Razorpay without paying (order was never completed)
+    const abandonedPayment =
+      req.body.abandonedPayment === true &&
+      order.paymentInfo?.status !== 'paid' &&
+      ['RAZORPAY', 'COD'].includes(order.paymentInfo?.method);
+    if (!abandonedPayment) {
+      notifyOrderCancelled(order, req.user._id);
+    }
+
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

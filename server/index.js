@@ -28,7 +28,11 @@ const limiter = rateLimit({
   max: 100,
   message: 'Too many requests from this IP, please try again after 15 minutes'
 });
-app.use('/api/', limiter);
+// Magic Checkout shipping/promotions callbacks are called by Razorpay servers — skip rate limit
+app.use('/api/', (req, res, next) => {
+  if (req.originalUrl.startsWith('/api/payments/magic/')) return next();
+  return limiter(req, res, next);
+});
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
