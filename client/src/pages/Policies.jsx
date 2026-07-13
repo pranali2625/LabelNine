@@ -101,7 +101,7 @@ export default function Policies() {
 
           <SectionCard icon={MapPin} title="Shipping Coverage">
             <p>
-              We currently ship across India and plan to expand to international markets in the future.
+              We currently ship across Maharashtra and plan to expand to all over India and international markets in the future.
             </p>
           </SectionCard>
 

@@ -23,7 +23,7 @@ export const loadRazorpay = () => loadScript(STANDARD_SCRIPT)
 export const loadMagicCheckout = () => loadScript(MAGIC_SCRIPT)
 
 /**
- * Magic Checkout — address in Razorpay; COD or prepaid from paymentMethod.
+ * Magic Checkout — address + prepaid payment in Razorpay (COD disabled for now).
  */
 export async function openMagicCheckout({
   items,
@@ -39,7 +39,6 @@ export async function openMagicCheckout({
     return false
   }
 
-  const preferredMethod = paymentMethod === 'COD' ? 'COD' : 'RAZORPAY'
   const email = contact?.email || user?.email || ''
   const phone = contact?.phone || user?.phone || ''
   const name = contact?.name || user?.name || ''
@@ -51,7 +50,7 @@ export async function openMagicCheckout({
       quantity: i.quantity
     })),
     contact: { name, phone, email },
-    paymentMethod: preferredMethod
+    paymentMethod: 'RAZORPAY'
   })
 
   const orderId = data.order.orderId
@@ -59,10 +58,6 @@ export async function openMagicCheckout({
     name,
     email: email || `${phone || 'customer'}@labelnine.in`,
     contact: phone ? (phone.startsWith('+') ? phone : `+91${phone}`) : ''
-  }
-
-  if (preferredMethod === 'COD') {
-    prefill.method = 'cod'
   }
 
   const options = {
@@ -81,11 +76,7 @@ export async function openMagicCheckout({
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_signature: response.razorpay_signature
         })
-        toast.success(
-          complete.order?.paymentInfo?.method === 'COD'
-            ? 'Order placed — pay on delivery'
-            : 'Payment successful!'
-        )
+        toast.success('Payment successful!')
         onSuccess?.(complete.order)
       } catch (err) {
         toast.error(err.response?.data?.message || 'Could not confirm order')

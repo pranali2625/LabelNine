@@ -80,8 +80,8 @@ function shippingMethodsForOrder(order, addresses = []) {
           description: 'Delivered in 4–6 business days across Maharashtra',
           serviceable,
           shipping_fee: serviceable ? shippingFeePaise : 0,
-          // Razorpay only shows Cash on Delivery when this is true
-          cod: serviceable,
+          // COD disabled for now — prepaid only
+          cod: false,
           cod_fee: 0
         }
       ]

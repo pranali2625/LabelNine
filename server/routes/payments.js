@@ -178,13 +178,9 @@ router.all('/magic/shipping-info', async (req, res) => {
     }
 
     if (!order) {
-      console.warn('Magic shipping-info: order not found — still enabling COD for MH pincodes', {
-        receiptId,
-        rzpOrderKey
-      });
-      // Don't 404 — Razorpay needs a shipping response with cod:true to show Cash on Delivery
+      console.warn('Magic shipping-info: order not found', { receiptId, rzpOrderKey });
       return res.json({
-        addresses: shippingMethodsForOrder({ itemsPrice: 0, paymentInfo: { method: 'COD' } }, addresses)
+        addresses: shippingMethodsForOrder({ itemsPrice: 0 }, addresses)
       });
     }
 

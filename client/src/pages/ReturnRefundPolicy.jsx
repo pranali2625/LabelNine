@@ -65,7 +65,7 @@ export default function ReturnRefundPolicy() {
       <section className="bg-amber-400 text-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           <p className="text-sm md:text-base font-medium text-center">
-            Return requests must be submitted within <strong>7 days</strong> of delivery.
+            Return requests must be submitted within <strong>3 days</strong> of delivery.
           </p>
         </div>
       </section>
@@ -81,7 +81,7 @@ export default function ReturnRefundPolicy() {
               'The product has a manufacturing defect.'
             ]} />
             <p className="mt-4 text-sm font-medium text-black">
-              Returns must be requested within 7 days of delivery.
+              Returns must be requested within 3 days of delivery.
             </p>
           </SectionCard>
 
@@ -121,6 +121,9 @@ export default function ReturnRefundPolicy() {
               'Refunds will be processed within 7–10 business days.',
               'Refunds will be credited to the original payment method.'
             ]} />
+            <p className="mt-4">
+              To be eligible for a full refund, items must be returned in their original condition—unused, unwashed, and with all original tags and packaging intact. We reserve the right to refuse a refund or apply a restocking fee if the returned item is found to be used, altered, or damaged.
+            </p>
           </SectionCard>
 
           <SectionCard icon={RefreshCw} title="Exchange Policy">

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { openMagicCheckout } from '../utils/razorpay'
-import { ShieldCheck, Banknote, Smartphone } from 'lucide-react'
+import { ShieldCheck, Smartphone } from 'lucide-react'
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -44,7 +44,6 @@ export default function Checkout() {
 
     setLoading(true)
     try {
-      // Open Magic Checkout — customer picks Pay Online or COD inside Razorpay
       const order = await openMagicCheckout({
         items,
         user,
@@ -78,7 +77,7 @@ export default function Checkout() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="text-2xl font-bold mb-2">Checkout</h1>
       <p className="text-sm text-gray-500 mb-8">
-        Delivery address and payment (UPI, cards, or cash on delivery) are collected in the next step. Maharashtra only.
+        Delivery address and payment are collected in the next step. Maharashtra only.
       </p>
 
       <form onSubmit={handleCheckout}>
@@ -89,22 +88,11 @@ export default function Checkout() {
                 <ShieldCheck className="w-5 h-5" />
                 <h2 className="font-bold tracking-wide">PAYMENT &amp; DELIVERY</h2>
               </div>
-              <div className="space-y-3 text-sm text-gray-600">
-                <div className="flex items-start gap-3">
-                  <Smartphone className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-black">Pay online</p>
-                    <p className="text-xs text-gray-500 mt-0.5">UPI, cards, netbanking &amp; wallets</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Banknote className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-black">Cash on Delivery</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Available for Maharashtra pincodes — choose in the next step
-                    </p>
-                  </div>
+              <div className="flex items-start gap-3 text-sm text-gray-600">
+                <Smartphone className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-black">Pay online</p>
+                  <p className="text-xs text-gray-500 mt-0.5">UPI, cards, netbanking &amp; wallets</p>
                 </div>
               </div>
             </div>
@@ -149,10 +137,10 @@ export default function Checkout() {
                 disabled={loading}
                 className="w-full bg-black text-white py-4 font-semibold tracking-wide mt-6 hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? 'Please wait...' : `CHECKOUT • ₹${orderTotal}`}
+                {loading ? 'Please wait...' : `PAY NOW • ₹${orderTotal}`}
               </button>
               <p className="text-xs text-center text-gray-500 mt-3">
-                Choose Pay Online or Cash on Delivery in the next step
+                You will complete payment securely in the next step
               </p>
             </div>
           </div>

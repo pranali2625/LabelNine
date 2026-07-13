@@ -25,7 +25,14 @@ router.post('/', protect, async (req, res) => {
   try {
     const { items, shippingAddress, paymentMethod = 'RAZORPAY' } = req.body;
 
-    if (!['COD', 'RAZORPAY'].includes(paymentMethod)) {
+    if (paymentMethod === 'COD') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cash on Delivery is temporarily unavailable. Please pay online.'
+      });
+    }
+
+    if (!['RAZORPAY'].includes(paymentMethod)) {
       return res.status(400).json({ success: false, message: 'Invalid payment method' });
     }
 

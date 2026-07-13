@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, Banknote } from 'lucide-react'
+import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
 
@@ -25,15 +25,15 @@ const OUR_STORY_IMAGES = [
 
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
-  'CASH ON DELIVERY',
-  'EASY 7-DAY RETURNS',
+  'SECURE ONLINE PAYMENT',
+  'EASY 3-DAY RETURNS',
   'CRAFTED WITH CARE',
 ]
 
 const TRUST_BADGES = [
   { Icon: Truck, title: 'MAHARASHTRA DELIVERY', subtitle: 'Delivered across Maharashtra' },
-  { Icon: RotateCcw, title: 'EASY RETURNS', subtitle: '7-day hassle-free returns' },
-  { Icon: Banknote, title: 'CASH ON DELIVERY', subtitle: 'Pay when your order arrives' },
+  { Icon: RotateCcw, title: 'EASY RETURNS', subtitle: '3-day hassle-free returns' },
+  { Icon: ShieldCheck, title: 'SECURE PAYMENT', subtitle: 'UPI, cards & netbanking' },
 ]
 
 export default function Home() {
@@ -163,15 +163,19 @@ export default function Home() {
       </section>
 
       {/* Trust badges */}
-      <section className="border-t border-b border-gray-200 py-10">
+      <section className="border-t border-b border-gray-200 py-8 md:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto sm:max-w-none">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 md:gap-8">
             {TRUST_BADGES.map((badge) => (
-              <div key={badge.title} className="flex items-center gap-3 justify-center sm:justify-start">
-                <badge.Icon className="w-8 h-8 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm tracking-wide">{badge.title}</p>
-                  <p className="text-gray-500 text-sm">{badge.subtitle}</p>
+              <div key={badge.title} className="flex items-start gap-3 sm:gap-4">
+                <badge.Icon className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-xs sm:text-sm tracking-wide leading-snug">
+                    {badge.title}
+                  </p>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-0.5 leading-snug">
+                    {badge.subtitle}
+                  </p>
                 </div>
               </div>
             ))}
