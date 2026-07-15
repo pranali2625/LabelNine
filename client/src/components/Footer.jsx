@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronDown } from 'lucide-react'
 
 const InstagramIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -6,11 +8,117 @@ const InstagramIcon = () => (
   </svg>
 )
 
+const FOOTER_SECTIONS = [
+  {
+    id: 'shop',
+    title: 'SHOP',
+    links: [
+      { to: '/shop', label: 'All Shirts' },
+      { to: '/shop?sort=newest', label: 'New Arrivals' },
+      { to: '/shop?featured=true', label: 'Featured' },
+    ],
+  },
+  {
+    id: 'account',
+    title: 'MY ACCOUNT',
+    links: [
+      { to: '/account', label: 'My Account' },
+      { to: '/track', label: 'Track Order' },
+      { to: '/account/orders', label: 'My Orders' },
+    ],
+  },
+  {
+    id: 'policies',
+    title: 'POLICIES',
+    links: [
+      { to: '/help/policies', label: 'Shipping & Cancellation' },
+      { to: '/help/privacy', label: 'Privacy Policy' },
+      { to: '/help/returns', label: 'Return & Refund' },
+      { to: '/help/terms', label: 'Terms of Service' },
+    ],
+  },
+  {
+    id: 'contact',
+    title: 'CONTACT',
+    links: [
+      { to: '/contact', label: 'Contact Us' },
+    ],
+  },
+]
+
+function FooterLinks({ links }) {
+  return (
+    <ul className="space-y-2.5">
+      {links.map((link) => (
+        <li key={link.to + link.label}>
+          <Link to={link.to} className="text-gray-400 hover:text-white text-sm transition-colors">
+            {link.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function AccordionSection({ section, open, onToggle }) {
+  return (
+    <div className="border-b border-gray-800">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between py-3.5 text-left"
+      >
+        <span className="text-sm font-semibold tracking-wider text-gray-300">{section.title}</span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          strokeWidth={1.75}
+        />
+      </button>
+      {open ? (
+        <div className="pb-4">
+          <FooterLinks links={section.links} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export default function Footer() {
+  const [openSection, setOpenSection] = useState(null)
+
+  const toggleSection = (id) => {
+    setOpenSection((current) => (current === id ? null : id))
+  }
+
   return (
     <footer className="bg-black text-white mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
+        {/* Brand */}
+        <div className="mb-8 sm:mb-0 sm:hidden">
+          <h3 className="text-2xl font-bold tracking-[0.3em] mb-3">LABEL NINE</h3>
+          <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+            Premium men&apos;s shirts crafted with precision and passion. Made for the modern Indian man.
+          </p>
+          <Link to="/about" className="inline-block mt-3 text-sm text-gray-400 hover:text-white transition-colors">
+            About Us →
+          </Link>
+        </div>
+
+        {/* Mobile: accordion menus */}
+        <div className="sm:hidden border-t border-gray-800">
+          {FOOTER_SECTIONS.map((section) => (
+            <AccordionSection
+              key={section.id}
+              section={section}
+              open={openSection === section.id}
+              onToggle={() => toggleSection(section.id)}
+            />
+          ))}
+        </div>
+
+        {/* Desktop / tablet: multi-column */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-8">
           <div>
             <h3 className="text-2xl font-bold tracking-[0.3em] mb-4">LABEL NINE</h3>
             <p className="text-gray-400 text-sm leading-relaxed">
@@ -21,61 +129,28 @@ export default function Footer() {
             </Link>
           </div>
 
-          <div>
-            <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">SHOP</h4>
-            <ul className="space-y-2">
-              <li><Link to="/shop" className="text-gray-400 hover:text-white text-sm transition-colors">All Shirts</Link></li>
-              <li><Link to="/shop?sort=newest" className="text-gray-400 hover:text-white text-sm transition-colors">New Arrivals</Link></li>
-              <li><Link to="/shop?featured=true" className="text-gray-400 hover:text-white text-sm transition-colors">Featured</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">MY ACCOUNT</h4>
-            <ul className="space-y-2">
-              <li><Link to="/account" className="text-gray-400 hover:text-white text-sm transition-colors">My Account</Link></li>
-              <li><Link to="/track" className="text-gray-400 hover:text-white text-sm transition-colors">Track Order</Link></li>
-              <li><Link to="/account/orders" className="text-gray-400 hover:text-white text-sm transition-colors">My Orders</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">POLICIES</h4>
-            <ul className="space-y-2">
-              <li><Link to="/help/policies" className="text-gray-400 hover:text-white text-sm transition-colors">Shipping &amp; Cancellation</Link></li>
-              <li><Link to="/help/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</Link></li>
-              <li><Link to="/help/returns" className="text-gray-400 hover:text-white text-sm transition-colors">Return &amp; Refund</Link></li>
-              <li><Link to="/help/terms" className="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</Link></li>
-            </ul>
-          </div>
-
-          <div className="space-y-8">
-            <div>
-              <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">CONTACT</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link to="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">
-                    Contact Us
-                  </Link>
-                </li>
-              </ul>
+          {FOOTER_SECTIONS.map((section) => (
+            <div key={section.id}>
+              <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">{section.title}</h4>
+              <FooterLinks links={section.links} />
             </div>
-            <div>
-              <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">FOLLOW US</h4>
-              <a
-                href="https://www.instagram.com/labelnine_in"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="inline-flex text-gray-400 hover:text-white transition-colors"
-              >
-                <InstagramIcon />
-              </a>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="border-t border-gray-800 mt-10 pt-6">
+        {/* Social + copyright */}
+        <div className="border-t border-gray-800 mt-8 sm:mt-10 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold tracking-wider text-gray-500 sm:hidden">FOLLOW US</span>
+            <a
+              href="https://www.instagram.com/labelnine_in"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              className="inline-flex text-gray-400 hover:text-white transition-colors"
+            >
+              <InstagramIcon />
+            </a>
+          </div>
           <p className="text-gray-500 text-xs">© 2026 Label Nine. All rights reserved.</p>
         </div>
       </div>
