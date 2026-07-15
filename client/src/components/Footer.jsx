@@ -121,6 +121,19 @@ export default function Footer() {
               />
             ))}
           </div>
+
+          <div className="pt-6">
+            <h4 className="text-sm font-semibold tracking-[0.15em] mb-4 text-gray-300">FOLLOW US</h4>
+            <a
+              href="https://www.instagram.com/labelnine_in"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              className="inline-flex text-gray-400 hover:text-white transition-colors"
+            >
+              <InstagramIcon />
+            </a>
+          </div>
         </div>
 
         {/* Desktop / tablet */}
@@ -134,22 +147,27 @@ export default function Footer() {
             </div>
           ))}
 
-          <div>
-            <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">CONTACT</h4>
-            <FooterLinks links={FOOTER_SECTIONS.find((s) => s.id === 'contact').links} />
+          <div className="space-y-8">
+            <div>
+              <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">CONTACT</h4>
+              <FooterLinks links={FOOTER_SECTIONS.find((s) => s.id === 'contact').links} />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold tracking-wider mb-4 text-gray-300">FOLLOW US</h4>
+              <a
+                href="https://www.instagram.com/labelnine_in"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="inline-flex text-gray-400 hover:text-white transition-colors"
+              >
+                <InstagramIcon />
+              </a>
+            </div>
           </div>
         </div>
 
-        <div className="mt-10 pt-2 flex flex-col items-center gap-4 text-center">
-          <a
-            href="https://www.instagram.com/labelnine_in"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Instagram"
-            className="inline-flex text-gray-400 hover:text-white transition-colors"
-          >
-            <InstagramIcon />
-          </a>
+        <div className="mt-10 pt-2 text-center">
           <p className="text-gray-500 text-xs">© 2026 Label Nine. All rights reserved.</p>
         </div>
       </div>
