@@ -163,17 +163,20 @@ export default function Home() {
       </section>
 
       {/* Trust badges */}
-      <section className="border-t border-b border-gray-200 py-8 md:py-10">
+      <section className="border-t border-b border-gray-200 py-6 sm:py-8 md:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 md:gap-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-6 md:gap-8">
             {TRUST_BADGES.map((badge) => (
-              <div key={badge.title} className="flex items-start gap-3 sm:gap-4">
-                <badge.Icon className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+              <div
+                key={badge.title}
+                className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-4"
+              >
+                <badge.Icon className="w-5 h-5 sm:w-7 sm:h-7 flex-shrink-0 sm:mt-0.5" strokeWidth={1.5} />
                 <div className="min-w-0">
-                  <p className="font-semibold text-xs sm:text-sm tracking-wide leading-snug">
+                  <p className="font-semibold text-[10px] leading-tight tracking-wide sm:text-sm sm:leading-snug">
                     {badge.title}
                   </p>
-                  <p className="text-gray-500 text-xs sm:text-sm mt-0.5 leading-snug">
+                  <p className="text-gray-500 text-[10px] leading-tight mt-0.5 sm:text-sm sm:leading-snug">
                     {badge.subtitle}
                   </p>
                 </div>
