@@ -8,12 +8,16 @@ const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c8542
 
 const CAMPAIGN_SLIDES = [
   {
-    src: '/uploads/products/IMG-20260710-WA0001.jpg',
-    alt: 'Label Nine — Made for Every Moment',
+    src: '/images/home/campaign-1.png',
+    alt: 'Label Nine — Classic by Choice campaign',
   },
   {
-    src: '/uploads/products/IMG-20260710-WA0005.jpg',
-    alt: 'Label Nine — Classy Collection',
+    src: '/images/home/campaign-2.png',
+    alt: 'Label Nine — Classy Collection campaign',
+  },
+  {
+    src: '/images/home/campaign-3.png',
+    alt: 'Label Nine — Effortless by Nature campaign',
   },
 ]
 
