@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
@@ -13,6 +13,7 @@ export default function Checkout() {
   const { items, cartTotal, orderTotal, shippingCost, discountAmount, clearCart } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const abandonUnpaidOrder = async (orderId) => {
     try {
@@ -40,6 +41,11 @@ export default function Checkout() {
     }
     if (!/^[6-9]\d{9}$/.test(contact.phone)) {
       toast.error('Please update your mobile number in Account settings')
+      return
+    }
+
+    if (!acceptedTerms) {
+      toast.error('Please accept the terms and privacy policy before checkout.')
       return
     }
 
@@ -139,9 +145,27 @@ export default function Checkout() {
                   <span>₹{orderTotal}</span>
                 </div>
               </div>
+              <label className="flex items-start gap-3 mt-6 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/help/terms" className="text-black underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/help/privacy" className="text-black underline">
+                    Privacy Policy
+                  </Link>
+                </span>
+              </label>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptedTerms}
                 className="w-full bg-black text-white py-4 font-semibold tracking-wide mt-6 hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? 'Please wait...' : `PAY NOW • ₹${orderTotal}`}

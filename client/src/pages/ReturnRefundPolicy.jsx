@@ -119,7 +119,8 @@ export default function ReturnRefundPolicy() {
             <p className="mb-4">Once the returned product is received and inspected:</p>
             <BulletList items={[
               'Refunds will be processed within 7–10 business days.',
-              'Refunds will be credited to the original payment method.'
+              'Refunds will be credited to the original payment method.',
+              'A reverse shipping charge of ₹199 will be deducted from the refund amount for return pickups.'
             ]} />
             <p className="mt-4">
               To be eligible for a full refund, items must be returned in their original condition—unused, unwashed, and with all original tags and packaging intact. We reserve the right to refuse a refund or apply a restocking fee if the returned item is found to be used, altered, or damaged.
