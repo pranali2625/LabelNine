@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_state VARCHAR(100) NOT NULL,
   shipping_pincode VARCHAR(6) NOT NULL,
   items_price DECIMAL(10, 2) NOT NULL,
+  discount_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  discount_code VARCHAR(50),
   shipping_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   tax_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   total_amount DECIMAL(10, 2) NOT NULL,

@@ -1,12 +1,16 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { calculateShipping } from '../constants/pricing'
+import { calculateShipping, calculateNewCustomerDiscount } from '../constants/pricing'
+import { useAuth } from './AuthContext'
+import api from '../services/api'
 
 const CartContext = createContext(null)
 
 const CART_KEY = 'ln_cart'
 
 export function CartProvider({ children }) {
+  const { user } = useAuth()
+  const [newCustomerEligible, setNewCustomerEligible] = useState(false)
   const [items, setItems] = useState(() => {
     try {
       const stored = localStorage.getItem(CART_KEY)
@@ -20,6 +24,26 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(items))
   }, [items])
+
+  useEffect(() => {
+    let cancelled = false
+    const checkDiscount = async () => {
+      if (!user) {
+        setNewCustomerEligible(false)
+        return
+      }
+      try {
+        const { data } = await api.get('/payments/new-customer-discount')
+        if (!cancelled) setNewCustomerEligible(Boolean(data?.eligible))
+      } catch {
+        if (!cancelled) setNewCustomerEligible(false)
+      }
+    }
+    checkDiscount()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const addToCart = (product, size, quantity = 1) => {
     setItems(prev => {
@@ -58,18 +82,23 @@ export function CartProvider({ children }) {
     toast.success('Removed from cart')
   }
 
-  const clearCart = () => setItems([])
+  const clearCart = () => {
+    setItems([])
+    setNewCustomerEligible(false)
+  }
 
   const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
+  const discountAmount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible)
   const shippingCost = calculateShipping(cartTotal)
   const tax = 0 // GST disabled for now
-  const orderTotal = cartTotal + shippingCost + tax
+  const orderTotal = cartTotal - discountAmount + shippingCost + tax
 
   return (
     <CartContext.Provider value={{
       items, addToCart, updateQuantity, removeFromCart, clearCart,
-      cartTotal, cartCount, shippingCost, tax, orderTotal
+      cartTotal, cartCount, shippingCost, tax, orderTotal,
+      discountAmount, newCustomerEligible
     }}>
       {children}
     </CartContext.Provider>

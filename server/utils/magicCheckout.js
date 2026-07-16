@@ -21,24 +21,57 @@ function fromPaise(paise) {
 }
 
 /** Build Razorpay Magic Checkout line_items from local order items */
-function buildLineItems(orderItems) {
-  return orderItems.map((item) => {
+function buildLineItems(orderItems, discountAmount = 0) {
+  const itemsPrice = orderItems.reduce(
+    (sum, item) => sum + Number(item.price) * item.quantity,
+    0
+  );
+  const discount = Math.min(Math.max(Number(discountAmount) || 0, 0), itemsPrice);
+  const targetOfferPaise = toPaise(itemsPrice - discount);
+
+  const lineItems = orderItems.map((item) => {
     const unitPaise = toPaise(item.price);
+    const lineShare = itemsPrice > 0 ? (Number(item.price) * item.quantity) / itemsPrice : 0;
+    const lineDiscountPaise = Math.round(toPaise(discount) * lineShare);
+    const lineOfferTotal = Math.max(0, unitPaise * item.quantity - lineDiscountPaise);
+    const offerPaise =
+      item.quantity > 0 ? Math.max(0, Math.round(lineOfferTotal / item.quantity)) : 0;
+
     return {
       sku: String(item.product || item.productId || item._id),
       variant_id: `${item.product || item.productId}-${item.size}`,
       price: unitPaise,
-      offer_price: unitPaise,
+      offer_price: offerPaise,
       quantity: item.quantity,
       name: item.name,
       description: `${item.name} — Size ${item.size}`,
       image_url: absoluteImageUrl(item.image)
     };
   });
+
+  // Fix paise rounding so offer totals match the intended discounted amount
+  if (lineItems.length && discount > 0) {
+    let offerSum = lineItems.reduce((sum, li) => sum + li.offer_price * li.quantity, 0);
+    let diff = targetOfferPaise - offerSum;
+    const last = lineItems[lineItems.length - 1];
+    if (diff !== 0 && last.quantity > 0) {
+      const adjusted = last.offer_price + Math.trunc(diff / last.quantity);
+      last.offer_price = Math.max(0, adjusted);
+      offerSum = lineItems.reduce((sum, li) => sum + li.offer_price * li.quantity, 0);
+      diff = targetOfferPaise - offerSum;
+      // Remainder that cannot split evenly across qty — leave on last unit if qty === 1
+      if (diff !== 0 && last.quantity === 1) {
+        last.offer_price = Math.max(0, last.offer_price + diff);
+      }
+    }
+  }
+
+  return lineItems;
 }
 
-function lineItemsTotalPaise(orderItems) {
-  return orderItems.reduce((sum, item) => sum + toPaise(item.price) * item.quantity, 0);
+function lineItemsTotalPaise(orderItems, discountAmount = 0) {
+  const lineItems = buildLineItems(orderItems, discountAmount);
+  return lineItems.reduce((sum, item) => sum + item.offer_price * item.quantity, 0);
 }
 
 function normalizePhone(contact) {

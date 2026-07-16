@@ -33,6 +33,11 @@ export default function OrderSuccess() {
             <span>{order.paymentInfo?.method === 'COD' ? 'Total (pay on delivery)' : 'Total Paid'}</span>
             <span>₹{order.totalAmount}</span>
           </div>
+          {order.discountAmount > 0 && (
+            <p className="text-xs text-green-700 mt-2">
+              Includes {order.discountCode || 'new customer'} discount of ₹{order.discountAmount}
+            </p>
+          )}
           {order.estimatedDelivery && (
             <p className="text-xs text-gray-500 mt-3">
               Estimated delivery: <span className="font-medium text-black">{new Date(order.estimatedDelivery).toDateString()}</span>

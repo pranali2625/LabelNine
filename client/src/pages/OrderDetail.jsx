@@ -103,7 +103,13 @@ export default function OrderDetail() {
 
           <div className="border-t border-gray-100 mt-4 pt-4 space-y-1 text-sm">
             <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{order.itemsPrice}</span></div>
-            {/* <div className="flex justify-between text-gray-600"><span>Shipping</span><span>{order.shippingPrice === 0 ? 'FREE' : `₹${order.shippingPrice}`}</span></div> */}
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span>{order.discountCode || 'New customer'} discount</span>
+                <span>−₹{order.discountAmount}</span>
+              </div>
+            )}
+            {/* <div className="flex justify-between text-gray-600"><span>Shipping</span><span>{order.shippingPrice === 0 ? 'FREE' : `₹{order.shippingPrice}`}</span></div> */}
             {/* GST disabled for now
             <div className="flex justify-between text-gray-600"><span>GST</span><span>₹{order.taxPrice}</span></div>
             */}

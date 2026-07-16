@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const { pool } = require('../config/db');
 const { protect } = require('../middleware/auth');
 const { generateOrderId, calculatePrices } = require('../utils/helpers');
+const { isEligibleForNewCustomerDiscount } = require('../utils/newCustomerDiscount');
 const { restoreOrderStock, deductOrderStock } = require('../utils/orderStock');
 const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
 const { validateShippingAddress } = require('../../shared/maharashtra');
@@ -74,7 +75,9 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    const { itemsPrice, shippingPrice, taxPrice, totalAmount } = calculatePrices(orderItems);
+    const eligible = await isEligibleForNewCustomerDiscount(req.user);
+    const { itemsPrice, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } =
+      calculatePrices(orderItems, { newCustomerDiscount: eligible });
     const isCOD = paymentMethod === 'COD';
 
     await conn.beginTransaction();
@@ -85,6 +88,8 @@ router.post('/', protect, async (req, res) => {
       items: orderItems,
       shippingAddress,
       itemsPrice,
+      discountAmount,
+      discountCode,
       shippingPrice,
       taxPrice,
       totalAmount,

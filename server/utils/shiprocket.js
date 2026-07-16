@@ -116,7 +116,7 @@ function buildAdhocPayload(order) {
     shipping_charges: order.shippingPrice || 0,
     giftwrap_charges: 0,
     transaction_charges: 0,
-    total_discount: 0,
+    total_discount: order.discountAmount || 0,
     sub_total: order.itemsPrice,
     length: Number(process.env.SHIPROCKET_PACKAGE_LENGTH_CM) || 30,
     breadth: Number(process.env.SHIPROCKET_PACKAGE_BREADTH_CM) || 25,

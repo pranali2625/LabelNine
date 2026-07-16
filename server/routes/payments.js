@@ -17,6 +17,10 @@ const {
   shippingMethodsForOrder,
   normalizePhone
 } = require('../utils/magicCheckout');
+const {
+  isEligibleForNewCustomerDiscount,
+  calculateNewCustomerDiscount
+} = require('../utils/newCustomerDiscount');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -203,10 +207,30 @@ router.all('/magic/shipping-info', async (req, res) => {
 // @route POST|GET /api/payments/magic/promotions
 router.all('/magic/promotions', async (req, res) => {
   try {
-    // No store coupons yet — return empty list so Magic Checkout still works
+    // Coupons are auto-applied for eligible first orders — no manual list needed
     res.json({ promotions: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// @route GET /api/payments/new-customer-discount
+// @desc  Check if logged-in user gets 10% off their first order
+router.get('/new-customer-discount', protect, async (req, res) => {
+  try {
+    const eligible = await isEligibleForNewCustomerDiscount(req.user);
+    const preview = calculateNewCustomerDiscount(0, eligible);
+    res.json({
+      success: true,
+      eligible,
+      discountPercent: preview.discountPercent,
+      discountCode: preview.discountCode,
+      requiresUniqueEmailAndPhone: true,
+      hasContact: Boolean(req.user?.email && req.user?.phone)
+    });
+  } catch (err) {
+    console.error('New customer discount check error:', err);
+    res.status(500).json({ success: false, message: 'Failed to check discount eligibility' });
   }
 });
 
@@ -272,10 +296,12 @@ router.post('/magic/create', protect, async (req, res) => {
     }
 
     const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const eligible = await isEligibleForNewCustomerDiscount(req.user);
+    const discount = calculateNewCustomerDiscount(itemsPrice, eligible);
     // Shipping is applied inside Magic Checkout via shipping-info callback
     const shippingPrice = 0;
     const taxPrice = 0;
-    const totalAmount = itemsPrice;
+    const totalAmount = discount.discountedItemsPrice;
     const orderId = generateOrderId();
     const phone = normalizePhone(contact?.phone || req.user.phone) || '0000000000';
 
@@ -296,6 +322,8 @@ router.post('/magic/create', protect, async (req, res) => {
           pincode: '400001'
         },
         itemsPrice,
+        discountAmount: discount.discountAmount,
+        discountCode: discount.discountAmount > 0 ? discount.discountCode : null,
         shippingPrice,
         taxPrice,
         totalAmount,
@@ -307,8 +335,8 @@ router.post('/magic/create', protect, async (req, res) => {
 
     await deductOrderStock(orderItems, conn);
 
-    const lineItems = buildLineItems(orderItems);
-    const lineTotal = lineItemsTotalPaise(orderItems);
+    const lineItems = buildLineItems(orderItems, discount.discountAmount);
+    const lineTotal = lineItemsTotalPaise(orderItems, discount.discountAmount);
 
     const razorpayOrder = await razorpay.orders.create({
       amount: lineTotal,
@@ -319,7 +347,13 @@ router.post('/magic/create', protect, async (req, res) => {
       notes: {
         orderId,
         userId: req.user._id.toString(),
-        preferredMethod
+        preferredMethod,
+        ...(discount.discountAmount > 0
+          ? {
+              discountCode: discount.discountCode,
+              discountAmount: String(discount.discountAmount)
+            }
+          : {})
       }
     });
 
@@ -332,6 +366,12 @@ router.post('/magic/create', protect, async (req, res) => {
     res.status(201).json({
       success: true,
       order: savedOrder,
+      discount: {
+        eligible: discount.eligible,
+        percent: discount.discountPercent,
+        amount: discount.discountAmount,
+        code: discount.discountAmount > 0 ? discount.discountCode : null
+      },
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency || 'INR',

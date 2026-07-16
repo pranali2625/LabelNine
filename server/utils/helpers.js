@@ -7,13 +7,22 @@ const generateOrderId = () => {
 };
 
 const { calculateShipping } = require('../../shared/pricing');
+const { calculateNewCustomerDiscount } = require('./newCustomerDiscount');
 
-const calculatePrices = (items) => {
+const calculatePrices = (items, options = {}) => {
   const itemsPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discount = calculateNewCustomerDiscount(itemsPrice, Boolean(options.newCustomerDiscount));
   const shippingPrice = calculateShipping(itemsPrice);
   const taxPrice = 0; // GST disabled for now
-  const totalAmount = itemsPrice + shippingPrice + taxPrice;
-  return { itemsPrice, shippingPrice, taxPrice, totalAmount };
+  const totalAmount = discount.discountedItemsPrice + shippingPrice + taxPrice;
+  return {
+    itemsPrice,
+    discountAmount: discount.discountAmount,
+    discountCode: discount.discountAmount > 0 ? discount.discountCode : null,
+    shippingPrice,
+    taxPrice,
+    totalAmount
+  };
 };
 
 const { isMaharashtraPincode } = require('../../shared/maharashtra');

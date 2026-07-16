@@ -22,6 +22,8 @@ class Order {
          shipping_state=COALESCE(?, shipping_state),
          shipping_pincode=COALESCE(?, shipping_pincode),
          items_price=COALESCE(?, items_price),
+         discount_amount=COALESCE(?, discount_amount),
+         discount_code=COALESCE(?, discount_code),
          shipping_price=COALESCE(?, shipping_price),
          tax_price=COALESCE(?, tax_price),
          total_amount=COALESCE(?, total_amount),
@@ -45,6 +47,8 @@ class Order {
         addr.state || null,
         addr.pincode || null,
         this.itemsPrice ?? null,
+        this.discountAmount ?? null,
+        this.discountCode ?? null,
         this.shippingPrice ?? null,
         this.taxPrice ?? null,
         this.totalAmount ?? null,
@@ -229,9 +233,10 @@ class Order {
     const [result] = await db.query(
       `INSERT INTO orders (
         order_id, user_id, shipping_name, shipping_phone, shipping_line1, shipping_line2,
-        shipping_city, shipping_state, shipping_pincode, items_price, shipping_price, tax_price,
-        total_amount, payment_method, payment_status, order_status, estimated_delivery
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        shipping_city, shipping_state, shipping_pincode, items_price, discount_amount, discount_code,
+        shipping_price, tax_price, total_amount, payment_method, payment_status, order_status,
+        estimated_delivery
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.orderId,
         data.user,
@@ -243,6 +248,8 @@ class Order {
         addr.state,
         addr.pincode,
         data.itemsPrice,
+        data.discountAmount || 0,
+        data.discountCode || null,
         data.shippingPrice,
         data.taxPrice,
         data.totalAmount,
@@ -330,8 +337,8 @@ class Order {
   static async findForTracking(orderId) {
     const [rows] = await pool.query(
       `SELECT order_id, order_status, estimated_delivery, delivered_at, created_at,
-              shipping_city, shipping_state, items_price, shipping_price, tax_price, total_amount,
-              payment_status, payment_method,
+              shipping_city, shipping_state, items_price, discount_amount, discount_code,
+              shipping_price, tax_price, total_amount, payment_status, payment_method,
               shiprocket_awb, shiprocket_courier, shiprocket_status
        FROM orders WHERE order_id = ?`,
       [orderId]
@@ -356,6 +363,9 @@ class Order {
       createdAt: row.created_at,
       shippingAddress: { city: row.shipping_city, state: row.shipping_state },
       items: items.map((i) => ({ name: i.name, size: i.size, quantity: i.quantity })),
+      itemsPrice: Number(row.items_price),
+      discountAmount: Number(row.discount_amount || 0),
+      discountCode: row.discount_code || undefined,
       totalAmount: Number(row.total_amount),
       paymentInfo: { status: row.payment_status },
       shiprocket: row.shiprocket_awb

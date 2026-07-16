@@ -6,10 +6,11 @@ import api from '../services/api'
 import toast from 'react-hot-toast'
 import { openMagicCheckout } from '../utils/razorpay'
 import { ShieldCheck, Smartphone } from 'lucide-react'
+import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, shippingCost, clearCart } = useCart()
+  const { items, cartTotal, orderTotal, shippingCost, discountAmount, clearCart } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
 
@@ -124,6 +125,12 @@ export default function Checkout() {
                     {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                   </span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                    <span>−₹{discountAmount}</span>
+                  </div>
+                )}
                 <p className="text-xs text-gray-400">
                   Final shipping is confirmed for your delivery address.
                 </p>

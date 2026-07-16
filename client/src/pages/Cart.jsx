@@ -2,10 +2,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { SHIPPING_THRESHOLD, FLAT_SHIPPING } from '../constants/pricing'
+import { SHIPPING_THRESHOLD, FLAT_SHIPPING, NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Cart() {
-  const { items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount, shippingCost } = useCart()
+  const {
+    items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
+    shippingCost, discountAmount, newCustomerEligible
+  } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -95,12 +98,22 @@ export default function Cart() {
                   {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                 </span>
               </div>
-              {/* GST disabled for now
-              <div className="flex justify-between">
-                <span className="text-gray-600">GST (5%)</span>
-                <span>₹{tax}</span>
-              </div>
-              */}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                  <span>−₹{discountAmount}</span>
+                </div>
+              )}
+              {user && !newCustomerEligible && (
+                <p className="text-xs text-gray-400">
+                  New customers with a unique email and phone get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off their first order.
+                </p>
+              )}
+              {!user && (
+                <p className="text-xs text-gray-400">
+                  Sign in as a new customer to get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off your first order.
+                </p>
+              )}
               <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-base">
                 <span>Total</span>
                 <span>₹{orderTotal}</span>

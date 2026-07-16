@@ -120,6 +120,8 @@ const formatOrder = (row, items = [], tracking = [], user = null) => {
       pincode: row.shipping_pincode
     },
     itemsPrice: Number(row.items_price),
+    discountAmount: Number(row.discount_amount || 0),
+    discountCode: row.discount_code || undefined,
     shippingPrice: Number(row.shipping_price),
     taxPrice: Number(row.tax_price),
     totalAmount: Number(row.total_amount),

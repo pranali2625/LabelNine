@@ -152,6 +152,16 @@ async function applyMigrations() {
     `);
     console.log('Migration applied: added size_chart to products');
   }
+
+  const [discountCol] = await db.query("SHOW COLUMNS FROM orders LIKE 'discount_amount'");
+  if (!discountCol.length) {
+    await db.query(`
+      ALTER TABLE orders
+      ADD COLUMN discount_amount DECIMAL(10, 2) NOT NULL DEFAULT 0 AFTER items_price,
+      ADD COLUMN discount_code VARCHAR(50) NULL AFTER discount_amount
+    `);
+    console.log('Migration applied: added discount columns to orders');
+  }
 }
 
 module.exports = {
