@@ -176,13 +176,9 @@ export function CartProvider({ children }) {
   }
 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
-  const welcomeDiscount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible && !appliedCoupon)
-  const discountAmount = appliedCoupon
-    ? Number(appliedCoupon.discountAmount) || 0
-    : welcomeDiscount
-  const discountLabel = appliedCoupon
-    ? `${appliedCoupon.code} (${appliedCoupon.discountPercent}% off)`
-    : null
+  const welcomeDiscount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible)
+  const couponDiscount = Number(appliedCoupon?.discountAmount) || 0
+  const discountAmount = Math.round((welcomeDiscount + couponDiscount) * 100) / 100
   const shippingCost = calculateShipping(cartTotal)
   const tax = 0 // GST disabled for now
   const orderTotal = cartTotal - discountAmount + shippingCost + tax
@@ -191,8 +187,8 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items, addToCart, updateQuantity, removeFromCart, clearCart,
       cartTotal, cartCount, shippingCost, tax, orderTotal,
-      discountAmount, newCustomerEligible,
-      appliedCoupon, applyCoupon, removeCoupon, couponLoading, discountLabel
+      discountAmount, welcomeDiscount, couponDiscount, newCustomerEligible,
+      appliedCoupon, applyCoupon, removeCoupon, couponLoading
     }}>
       {children}
     </CartContext.Provider>

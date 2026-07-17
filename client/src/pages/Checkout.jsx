@@ -10,7 +10,7 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, shippingCost, discountAmount, clearCart, appliedCoupon, discountLabel } = useCart()
+  const { items, cartTotal, orderTotal, shippingCost, welcomeDiscount, couponDiscount, clearCart, appliedCoupon } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -132,12 +132,16 @@ export default function Checkout() {
                     {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                   </span>
                 </div>
-                {discountAmount > 0 && (
+                {welcomeDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
-                    <span>
-                      {discountLabel || `New customer (${NEW_CUSTOMER_DISCOUNT_PERCENT}% off)`}
-                    </span>
-                    <span>−₹{discountAmount}</span>
+                    <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                    <span>−₹{welcomeDiscount}</span>
+                  </div>
+                )}
+                {couponDiscount > 0 && appliedCoupon && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{appliedCoupon.code} ({appliedCoupon.discountPercent}% off)</span>
+                    <span>−₹{couponDiscount}</span>
                   </div>
                 )}
                 <p className="text-xs text-gray-400">

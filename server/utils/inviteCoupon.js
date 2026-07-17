@@ -101,28 +101,57 @@ function calculateInviteCouponDiscount(itemsPrice, coupon) {
 }
 
 /**
- * Prefer invite coupon when provided; otherwise fall back to WELCOME10 auto discount.
+ * Stack invite coupon + WELCOME10 when both apply (additive on subtotal).
  */
 async function resolveOrderDiscount(user, itemsPrice, couponCode) {
+  const {
+    calculateNewCustomerDiscount,
+    NEW_CUSTOMER_DISCOUNT_CODE
+  } = require('./newCustomerDiscount');
   const subtotal = Number(itemsPrice) || 0;
+
+  let invitePart = null;
+  let allowlistId = null;
+
   if (couponCode) {
     const resolved = await resolveInviteCoupon(user, couponCode);
     if (!resolved.ok) {
       return { ok: false, message: resolved.message };
     }
-    const discount = calculateInviteCouponDiscount(subtotal, resolved.coupon);
-    return {
-      ok: true,
-      source: 'invite',
-      discount,
-      allowlistId: resolved.coupon.allowlistId
-    };
+    invitePart = calculateInviteCouponDiscount(subtotal, resolved.coupon);
+    allowlistId = resolved.coupon.allowlistId;
   }
 
-  const { calculateNewCustomerDiscount } = require('./newCustomerDiscount');
   const eligible = await isEligibleForNewCustomerDiscount(user);
-  const discount = calculateNewCustomerDiscount(subtotal, eligible);
-  return { ok: true, source: 'welcome', discount, allowlistId: null };
+  const welcomePart = calculateNewCustomerDiscount(subtotal, eligible);
+
+  const welcomeAmount = welcomePart.discountAmount || 0;
+  const inviteAmount = invitePart?.discountAmount || 0;
+  const discountAmount = roundMoney(welcomeAmount + inviteAmount);
+
+  const codes = [];
+  if (welcomeAmount > 0) codes.push(NEW_CUSTOMER_DISCOUNT_CODE);
+  if (inviteAmount > 0) codes.push(invitePart.discountCode);
+
+  return {
+    ok: true,
+    source: codes.length > 1 ? 'both' : inviteAmount > 0 ? 'invite' : 'welcome',
+    discount: {
+      eligible: discountAmount > 0,
+      discountPercent:
+        inviteAmount > 0 && welcomeAmount > 0
+          ? welcomePart.discountPercent + invitePart.discountPercent
+          : inviteAmount > 0
+            ? invitePart.discountPercent
+            : welcomePart.discountPercent,
+      discountCode: codes.length ? codes.join('+') : null,
+      discountAmount,
+      discountedItemsPrice: roundMoney(subtotal - discountAmount),
+      welcomeAmount,
+      inviteAmount
+    },
+    allowlistId
+  };
 }
 
 async function markInviteCouponUsed(allowlistId, orderId) {
@@ -136,7 +165,12 @@ async function markInviteCouponUsed(allowlistId, orderId) {
 }
 
 async function markInviteCouponUsedForUser(user, code, orderId) {
-  const normalized = normalizeCouponCode(code);
+  const { NEW_CUSTOMER_DISCOUNT_CODE } = require('./newCustomerDiscount');
+  const parts = String(code || '')
+    .split('+')
+    .map((c) => normalizeCouponCode(c))
+    .filter((c) => c && c !== NEW_CUSTOMER_DISCOUNT_CODE);
+  const normalized = parts[0];
   if (!normalized || !user) return;
 
   const email = normalizeEmail(user.email);

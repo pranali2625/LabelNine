@@ -8,8 +8,8 @@ import { SHIPPING_THRESHOLD, FLAT_SHIPPING, NEW_CUSTOMER_DISCOUNT_PERCENT } from
 export default function Cart() {
   const {
     items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
-    shippingCost, discountAmount, newCustomerEligible,
-    appliedCoupon, applyCoupon, removeCoupon, couponLoading, discountLabel
+    shippingCost, welcomeDiscount, couponDiscount, newCustomerEligible,
+    appliedCoupon, applyCoupon, removeCoupon, couponLoading
   } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -107,12 +107,16 @@ export default function Cart() {
                   {shippingCost === 0 ? 'FREE' : `₹{shippingCost}`}
                 </span>
               </div>
-              {discountAmount > 0 && (
+              {welcomeDiscount > 0 && (
                 <div className="flex justify-between text-green-700">
-                  <span>
-                    {discountLabel || `New customer (${NEW_CUSTOMER_DISCOUNT_PERCENT}% off)`}
-                  </span>
-                  <span>−₹{discountAmount}</span>
+                  <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                  <span>−₹{welcomeDiscount}</span>
+                </div>
+              )}
+              {couponDiscount > 0 && appliedCoupon && (
+                <div className="flex justify-between text-green-700">
+                  <span>{appliedCoupon.code} ({appliedCoupon.discountPercent}% off)</span>
+                  <span>−₹{couponDiscount}</span>
                 </div>
               )}
               {user && (
@@ -148,9 +152,14 @@ export default function Cart() {
                   )}
                 </div>
               )}
-              {user && !newCustomerEligible && !appliedCoupon && (
+              {user && !newCustomerEligible && (
                 <p className="text-xs text-gray-400">
-                  Have an invite code? Enter it above for {NEW_CUSTOMER_DISCOUNT_PERCENT}% off your first order.
+                  New customers with a unique email and phone get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off their first order.
+                </p>
+              )}
+              {user && newCustomerEligible && !appliedCoupon && (
+                <p className="text-xs text-gray-400">
+                  Have an invite code? Apply it above — it stacks with your new-customer discount.
                 </p>
               )}
               {!user && (
