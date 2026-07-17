@@ -181,7 +181,11 @@ export function CartProvider({ children }) {
   const discountAmount = Math.round((welcomeDiscount + couponDiscount) * 100) / 100
   const shippingCost = calculateShipping(cartTotal)
   const tax = 0 // GST disabled for now
-  const orderTotal = cartTotal - discountAmount + shippingCost + tax
+  // Whole rupees only — drop paise (1399.1 → 1399)
+  const orderTotal = Math.max(
+    0,
+    Math.floor(cartTotal - discountAmount + shippingCost + tax + 1e-9)
+  )
 
   return (
     <CartContext.Provider value={{

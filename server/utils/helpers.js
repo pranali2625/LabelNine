@@ -7,7 +7,10 @@ const generateOrderId = () => {
 };
 
 const { calculateShipping } = require('../../shared/pricing');
-const { calculateNewCustomerDiscount } = require('./newCustomerDiscount');
+const {
+  calculateNewCustomerDiscount,
+  snapPayableToWholeRupee
+} = require('./newCustomerDiscount');
 
 const calculatePrices = (items, options = {}) => {
   const itemsPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -25,14 +28,14 @@ const calculatePrices = (items, options = {}) => {
 
   const shippingPrice = calculateShipping(itemsPrice);
   const taxPrice = 0; // GST disabled for now
-  const totalAmount = Math.round((itemsPrice - discountAmount + shippingPrice + taxPrice) * 100) / 100;
+  const snapped = snapPayableToWholeRupee(itemsPrice, discountAmount, shippingPrice, taxPrice);
   return {
     itemsPrice,
-    discountAmount,
-    discountCode,
+    discountAmount: snapped.discountAmount,
+    discountCode: snapped.discountAmount > 0 ? discountCode : null,
     shippingPrice,
     taxPrice,
-    totalAmount
+    totalAmount: snapped.totalAmount
   };
 };
 

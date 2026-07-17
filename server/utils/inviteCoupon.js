@@ -2,7 +2,8 @@ const { pool } = require('../config/db');
 const { normalizeEmail, normalizePhone } = require('./authNormalize');
 const {
   isEligibleForNewCustomerDiscount,
-  roundMoney
+  roundMoney,
+  snapPayableToWholeRupee
 } = require('./newCustomerDiscount');
 
 function normalizeCouponCode(code) {
@@ -127,7 +128,8 @@ async function resolveOrderDiscount(user, itemsPrice, couponCode) {
 
   const welcomeAmount = welcomePart.discountAmount || 0;
   const inviteAmount = invitePart?.discountAmount || 0;
-  const discountAmount = roundMoney(welcomeAmount + inviteAmount);
+  const rawDiscount = roundMoney(welcomeAmount + inviteAmount);
+  const snapped = snapPayableToWholeRupee(subtotal, rawDiscount);
 
   const codes = [];
   if (welcomeAmount > 0) codes.push(NEW_CUSTOMER_DISCOUNT_CODE);
@@ -137,7 +139,7 @@ async function resolveOrderDiscount(user, itemsPrice, couponCode) {
     ok: true,
     source: codes.length > 1 ? 'both' : inviteAmount > 0 ? 'invite' : 'welcome',
     discount: {
-      eligible: discountAmount > 0,
+      eligible: snapped.discountAmount > 0,
       discountPercent:
         inviteAmount > 0 && welcomeAmount > 0
           ? welcomePart.discountPercent + invitePart.discountPercent
@@ -145,8 +147,8 @@ async function resolveOrderDiscount(user, itemsPrice, couponCode) {
             ? invitePart.discountPercent
             : welcomePart.discountPercent,
       discountCode: codes.length ? codes.join('+') : null,
-      discountAmount,
-      discountedItemsPrice: roundMoney(subtotal - discountAmount),
+      discountAmount: snapped.discountAmount,
+      discountedItemsPrice: snapped.totalAmount,
       welcomeAmount,
       inviteAmount
     },

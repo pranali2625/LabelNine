@@ -8,6 +8,29 @@ function roundMoney(amount) {
   return Math.round(Number(amount) * 100) / 100;
 }
 
+/** Drop paise — 1399.1 / 1399.10 → 1399 */
+function toWholeRupee(amount) {
+  const n = Number(amount) || 0;
+  return Math.max(0, Math.floor(n + 1e-9));
+}
+
+/**
+ * Floor payable total to whole rupees; fold leftover into discount so totals match.
+ */
+function snapPayableToWholeRupee(itemsPrice, discountAmount, shippingPrice = 0, taxPrice = 0) {
+  const subtotal = Number(itemsPrice) || 0;
+  const shipping = Number(shippingPrice) || 0;
+  const tax = Number(taxPrice) || 0;
+  const discount = Math.max(0, Number(discountAmount) || 0);
+  const totalAmount = toWholeRupee(subtotal - discount + shipping + tax);
+  const adjustedDiscount = roundMoney(subtotal + shipping + tax - totalAmount);
+  return {
+    totalAmount,
+    discountAmount: Math.max(0, adjustedDiscount),
+    discountedItemsPrice: Math.max(0, totalAmount - shipping - tax)
+  };
+}
+
 function hasUniqueContact(user) {
   const email = normalizeEmail(user?.email);
   const phone = normalizePhone(user?.phone);
@@ -77,5 +100,7 @@ module.exports = {
   hasUniqueContact,
   isEligibleForNewCustomerDiscount,
   calculateNewCustomerDiscount,
-  roundMoney
+  roundMoney,
+  toWholeRupee,
+  snapPayableToWholeRupee
 };
