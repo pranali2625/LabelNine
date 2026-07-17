@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -7,10 +8,12 @@ import { SHIPPING_THRESHOLD, FLAT_SHIPPING, NEW_CUSTOMER_DISCOUNT_PERCENT } from
 export default function Cart() {
   const {
     items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
-    shippingCost, discountAmount, newCustomerEligible
+    shippingCost, discountAmount, newCustomerEligible,
+    appliedCoupon, applyCoupon, removeCoupon, couponLoading, discountLabel
   } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [couponInput, setCouponInput] = useState('')
 
   if (items.length === 0) {
     return (
@@ -31,6 +34,12 @@ export default function Cart() {
     } else {
       navigate('/checkout')
     }
+  }
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault()
+    const ok = await applyCoupon(couponInput)
+    if (ok) setCouponInput('')
   }
 
   return (
@@ -95,23 +104,58 @@ export default function Cart() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
                 <span className={shippingCost === 0 ? 'text-green-600 font-medium' : ''}>
-                  {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
+                  {shippingCost === 0 ? 'FREE' : `₹{shippingCost}`}
                 </span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-700">
-                  <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                  <span>
+                    {discountLabel || `New customer (${NEW_CUSTOMER_DISCOUNT_PERCENT}% off)`}
+                  </span>
                   <span>−₹{discountAmount}</span>
                 </div>
               )}
-              {user && !newCustomerEligible && (
+              {user && (
+                <div className="pt-1">
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-green-700 font-medium">{appliedCoupon.code} applied</span>
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="text-gray-500 hover:text-black underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        placeholder="Coupon code"
+                        className="flex-1 border border-gray-300 px-3 py-2 text-sm uppercase tracking-wide focus:outline-none focus:border-black"
+                      />
+                      <button
+                        type="submit"
+                        disabled={couponLoading}
+                        className="bg-black text-white px-4 py-2 text-xs font-semibold tracking-wide hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        {couponLoading ? '...' : 'APPLY'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+              {user && !newCustomerEligible && !appliedCoupon && (
                 <p className="text-xs text-gray-400">
-                  New customers with a unique email and phone get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off their first order.
+                  Have an invite code? Enter it above for {NEW_CUSTOMER_DISCOUNT_PERCENT}% off your first order.
                 </p>
               )}
               {!user && (
                 <p className="text-xs text-gray-400">
-                  Sign in as a new customer to get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off your first order.
+                  Sign in to apply a coupon or get {NEW_CUSTOMER_DISCOUNT_PERCENT}% off as a new customer.
                 </p>
               )}
               <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-base">

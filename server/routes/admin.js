@@ -279,4 +279,251 @@ router.get('/storage-info', (_req, res) => {
   });
 });
 
+// ──────────────────────────────────────────────────
+// INVITE COUPONS (first-order, allowlisted customers)
+// ──────────────────────────────────────────────────
+router.get('/coupons', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const [coupons] = await pool.query(
+      `SELECT c.id, c.code, c.discount_percent, c.first_order_only, c.is_active, c.created_at,
+              COUNT(cc.id) AS customer_count,
+              SUM(CASE WHEN cc.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used_count
+       FROM invite_coupons c
+       LEFT JOIN invite_coupon_customers cc ON cc.coupon_id = c.id
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`
+    );
+    res.json({
+      success: true,
+      coupons: coupons.map((c) => ({
+        id: c.id,
+        code: c.code,
+        discountPercent: Number(c.discount_percent),
+        firstOrderOnly: Boolean(c.first_order_only),
+        isActive: Boolean(c.is_active),
+        customerCount: Number(c.customer_count || 0),
+        usedCount: Number(c.used_count || 0),
+        createdAt: c.created_at
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/coupons', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.body?.code);
+    const discountPercent = Number(req.body?.discountPercent ?? 10);
+    const firstOrderOnly = req.body?.firstOrderOnly !== false;
+
+    if (!code || code.length < 3) {
+      return res.status(400).json({ success: false, message: 'Coupon code must be at least 3 characters' });
+    }
+    if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+      return res.status(400).json({ success: false, message: 'Discount must be between 1 and 100' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO invite_coupons (code, discount_percent, first_order_only, is_active)
+       VALUES (?, ?, ?, 1)`,
+      [code, discountPercent, firstOrderOnly ? 1 : 0]
+    );
+
+    res.status(201).json({
+      success: true,
+      coupon: {
+        id: result.insertId,
+        code,
+        discountPercent,
+        firstOrderOnly,
+        isActive: true,
+        customerCount: 0,
+        usedCount: 0
+      }
+    });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: 'Coupon code already exists' });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.patch('/coupons/:code', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.params.code);
+    const [coupons] = await pool.query(
+      `SELECT id, code, is_active FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+
+    const updates = [];
+    const values = [];
+    if (typeof req.body?.isActive === 'boolean') {
+      updates.push('is_active = ?');
+      values.push(req.body.isActive ? 1 : 0);
+    }
+    if (req.body?.discountPercent != null) {
+      const percent = Number(req.body.discountPercent);
+      if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+        return res.status(400).json({ success: false, message: 'Discount must be between 1 and 100' });
+      }
+      updates.push('discount_percent = ?');
+      values.push(percent);
+    }
+    if (!updates.length) {
+      return res.status(400).json({ success: false, message: 'No updates provided' });
+    }
+
+    values.push(coupons[0].id);
+    await pool.query(`UPDATE invite_coupons SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    const [updated] = await pool.query(
+      `SELECT id, code, discount_percent, first_order_only, is_active FROM invite_coupons WHERE id = ?`,
+      [coupons[0].id]
+    );
+    const c = updated[0];
+    res.json({
+      success: true,
+      coupon: {
+        id: c.id,
+        code: c.code,
+        discountPercent: Number(c.discount_percent),
+        firstOrderOnly: Boolean(c.first_order_only),
+        isActive: Boolean(c.is_active)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/coupons/:code/customers', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.params.code);
+    const [coupons] = await pool.query(
+      `SELECT id, code FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+    const [customers] = await pool.query(
+      `SELECT id, email, phone, used_at, used_order_id, created_at
+       FROM invite_coupon_customers
+       WHERE coupon_id = ?
+       ORDER BY id ASC`,
+      [coupons[0].id]
+    );
+    res.json({
+      success: true,
+      code: coupons[0].code,
+      customers: customers.map((row) => ({
+        id: row.id,
+        email: row.email,
+        phone: row.phone,
+        usedAt: row.used_at,
+        usedOrderId: row.used_order_id,
+        createdAt: row.created_at
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/coupons/:code/customers', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const { normalizeEmail, normalizePhone } = require('../utils/authNormalize');
+    const code = normalizeCouponCode(req.params.code);
+    const [coupons] = await pool.query(
+      `SELECT id, code FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+
+    const raw = Array.isArray(req.body?.customers)
+      ? req.body.customers
+      : [{ email: req.body?.email, phone: req.body?.phone }];
+
+    const inserted = [];
+    for (const row of raw) {
+      const email = normalizeEmail(row.email);
+      const phone = normalizePhone(row.phone);
+      if (!email && !phone) continue;
+      const [result] = await pool.query(
+        `INSERT INTO invite_coupon_customers (coupon_id, email, phone)
+         VALUES (?, ?, ?)`,
+        [coupons[0].id, email || null, phone || null]
+      );
+      inserted.push({ id: result.insertId, email: email || null, phone: phone || null });
+    }
+
+    if (!inserted.length) {
+      return res.status(400).json({ success: false, message: 'Provide at least one email or phone' });
+    }
+
+    res.status(201).json({
+      success: true,
+      code: coupons[0].code,
+      added: inserted.length,
+      customers: inserted
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.delete('/coupons/:code/customers/:customerId', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.params.code);
+    const customerId = Number(req.params.customerId);
+    if (!customerId) {
+      return res.status(400).json({ success: false, message: 'Invalid customer id' });
+    }
+
+    const [coupons] = await pool.query(
+      `SELECT id FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+
+    const [result] = await pool.query(
+      `DELETE FROM invite_coupon_customers
+       WHERE id = ? AND coupon_id = ? AND used_at IS NULL`,
+      [customerId, coupons[0].id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer not found or coupon already used (cannot remove)'
+      });
+    }
+
+    res.json({ success: true, message: 'Customer removed from allowlist' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

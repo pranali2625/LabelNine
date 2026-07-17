@@ -21,6 +21,12 @@ const {
   isEligibleForNewCustomerDiscount,
   calculateNewCustomerDiscount
 } = require('../utils/newCustomerDiscount');
+const {
+  resolveInviteCoupon,
+  calculateInviteCouponDiscount,
+  resolveOrderDiscount,
+  markInviteCouponUsedForUser
+} = require('../utils/inviteCoupon');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -107,6 +113,19 @@ async function finalizeMagicOrder(order, { rzpOrder, razorpay_payment_id, razorp
   }
 
   await order.save();
+
+  if (order.discountCode && order.discountCode !== 'WELCOME10') {
+    try {
+      const User = require('../models/User');
+      const buyerId = order.user?._id || order.user;
+      const user = await User.findById(buyerId);
+      if (user) {
+        await markInviteCouponUsedForUser(user, order.discountCode, order.orderId);
+      }
+    } catch (err) {
+      console.warn('Invite coupon mark-used failed:', err.message);
+    }
+  }
 
   const { notifyOrderConfirmed } = require('../utils/orderNotifications');
   const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');
@@ -234,6 +253,29 @@ router.get('/new-customer-discount', protect, async (req, res) => {
   }
 });
 
+// @route POST /api/payments/validate-coupon
+// @desc  Validate an invite coupon for the logged-in user
+router.post('/validate-coupon', protect, async (req, res) => {
+  try {
+    const { code, itemsPrice = 0 } = req.body || {};
+    const resolved = await resolveInviteCoupon(req.user, code);
+    if (!resolved.ok) {
+      return res.status(400).json({ success: false, message: resolved.message });
+    }
+    const discount = calculateInviteCouponDiscount(itemsPrice, resolved.coupon);
+    res.json({
+      success: true,
+      code: discount.discountCode,
+      discountPercent: discount.discountPercent,
+      discountAmount: discount.discountAmount,
+      firstOrderOnly: true
+    });
+  } catch (err) {
+    console.error('Validate coupon error:', err);
+    res.status(500).json({ success: false, message: 'Failed to validate coupon' });
+  }
+});
+
 // @route POST|GET /api/payments/magic/apply-promotion
 router.all('/magic/apply-promotion', async (req, res) => {
   try {
@@ -243,7 +285,7 @@ router.all('/magic/apply-promotion', async (req, res) => {
       error: {
         code: 'INVALID_COUPON',
         description: code
-          ? `Promotion code "${code}" is not valid`
+          ? `Promotion code "${code}" is not valid. Apply your invite code on the cart before checkout.`
           : 'No promotion code provided',
         source: 'business'
       }
@@ -265,7 +307,7 @@ router.post('/magic/create', protect, async (req, res) => {
       return res.status(503).json({ success: false, message: configError });
     }
 
-    const { items, contact, paymentMethod = 'RAZORPAY' } = req.body;
+    const { items, contact, paymentMethod = 'RAZORPAY', couponCode } = req.body;
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in cart' });
     }
@@ -296,8 +338,11 @@ router.post('/magic/create', protect, async (req, res) => {
     }
 
     const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const eligible = await isEligibleForNewCustomerDiscount(req.user);
-    const discount = calculateNewCustomerDiscount(itemsPrice, eligible);
+    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode);
+    if (!resolved.ok) {
+      return res.status(400).json({ success: false, message: resolved.message });
+    }
+    const discount = resolved.discount;
     // Shipping is applied inside Magic Checkout via shipping-info callback
     const shippingPrice = 0;
     const taxPrice = 0;
@@ -370,7 +415,8 @@ router.post('/magic/create', protect, async (req, res) => {
         eligible: discount.eligible,
         percent: discount.discountPercent,
         amount: discount.discountAmount,
-        code: discount.discountAmount > 0 ? discount.discountCode : null
+        code: discount.discountAmount > 0 ? discount.discountCode : null,
+        source: resolved.source
       },
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
@@ -588,6 +634,14 @@ router.post('/verify', protect, async (req, res) => {
     });
 
     await order.save();
+
+    if (order.discountCode && order.discountCode !== 'WELCOME10') {
+      try {
+        await markInviteCouponUsedForUser(req.user, order.discountCode, order.orderId);
+      } catch (err) {
+        console.warn('Invite coupon mark-used failed:', err.message);
+      }
+    }
 
     const { notifyOrderConfirmed } = require('../utils/orderNotifications');
     const { maybeCreateShiprocketOrder } = require('../utils/shiprocketOrders');

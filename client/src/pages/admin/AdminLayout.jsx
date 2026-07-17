@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, ShoppingBag, Users, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Ticket, LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useState } from 'react'
 
@@ -7,7 +7,8 @@ const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { to: '/admin/products', label: 'Products', icon: Package },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
-  { to: '/admin/users', label: 'Users', icon: Users }
+  { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/coupons', label: 'Coupons', icon: Ticket }
 ]
 
 export default function AdminLayout() {

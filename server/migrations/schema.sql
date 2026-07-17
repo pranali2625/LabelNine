@@ -143,3 +143,25 @@ CREATE TABLE IF NOT EXISTS order_tracking (
   tracked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS invite_coupons (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 10,
+  first_order_only TINYINT(1) NOT NULL DEFAULT 1,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS invite_coupon_customers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  coupon_id INT NOT NULL,
+  email VARCHAR(255) NULL,
+  phone VARCHAR(10) NULL,
+  used_at DATETIME NULL,
+  used_order_id VARCHAR(50) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (coupon_id) REFERENCES invite_coupons(id) ON DELETE CASCADE,
+  INDEX idx_invite_coupon_email (coupon_id, email),
+  INDEX idx_invite_coupon_phone (coupon_id, phone)
+);

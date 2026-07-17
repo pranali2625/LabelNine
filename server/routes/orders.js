@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 const { pool } = require('../config/db');
 const { protect } = require('../middleware/auth');
 const { generateOrderId, calculatePrices } = require('../utils/helpers');
-const { isEligibleForNewCustomerDiscount } = require('../utils/newCustomerDiscount');
+const { resolveOrderDiscount } = require('../utils/inviteCoupon');
 const { restoreOrderStock, deductOrderStock } = require('../utils/orderStock');
 const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
 const { validateShippingAddress } = require('../../shared/maharashtra');
@@ -24,7 +24,7 @@ const findUserOrder = (id, userId) =>
 router.post('/', protect, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { items, shippingAddress, paymentMethod = 'RAZORPAY' } = req.body;
+    const { items, shippingAddress, paymentMethod = 'RAZORPAY', couponCode } = req.body;
 
     if (paymentMethod === 'COD') {
       return res.status(400).json({
@@ -75,9 +75,16 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    const eligible = await isEligibleForNewCustomerDiscount(req.user);
-    const { itemsPrice, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } =
-      calculatePrices(orderItems, { newCustomerDiscount: eligible });
+    const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode);
+    if (!resolved.ok) {
+      return res.status(400).json({ success: false, message: resolved.message });
+    }
+    const { itemsPrice: _ip, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } =
+      calculatePrices(orderItems, {
+        discountAmount: resolved.discount.discountAmount,
+        discountCode: resolved.discount.discountAmount > 0 ? resolved.discount.discountCode : null
+      });
     const isCOD = paymentMethod === 'COD';
 
     await conn.beginTransaction();

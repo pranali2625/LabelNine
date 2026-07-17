@@ -32,6 +32,7 @@ import AdminDashboard from './pages/admin/Dashboard'
 import AdminProducts from './pages/admin/Products'
 import AdminOrders from './pages/admin/Orders'
 import AdminUsers from './pages/admin/Users'
+import AdminCoupons from './pages/admin/Coupons'
 import AdminLayout from './pages/admin/AdminLayout'
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="coupons" element={<AdminCoupons />} />
             </Route>
           </Route>
         </Routes>

@@ -10,7 +10,7 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, shippingCost, discountAmount, clearCart } = useCart()
+  const { items, cartTotal, orderTotal, shippingCost, discountAmount, clearCart, appliedCoupon, discountLabel } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -56,6 +56,7 @@ export default function Checkout() {
         user,
         contact,
         paymentMethod: 'RAZORPAY',
+        couponCode: appliedCoupon?.code || null,
         onSuccess: (confirmed) => {
           clearCart()
           navigate(`/order-success/${confirmed.orderId}`)
@@ -133,7 +134,9 @@ export default function Checkout() {
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-green-700">
-                    <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>
+                    <span>
+                      {discountLabel || `New customer (${NEW_CUSTOMER_DISCOUNT_PERCENT}% off)`}
+                    </span>
                     <span>−₹{discountAmount}</span>
                   </div>
                 )}

@@ -7,10 +7,20 @@ import api from '../services/api'
 const CartContext = createContext(null)
 
 const CART_KEY = 'ln_cart'
+const COUPON_KEY = 'ln_coupon'
 
 export function CartProvider({ children }) {
   const { user } = useAuth()
   const [newCustomerEligible, setNewCustomerEligible] = useState(false)
+  const [appliedCoupon, setAppliedCoupon] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COUPON_KEY)
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+  const [couponLoading, setCouponLoading] = useState(false)
   const [items, setItems] = useState(() => {
     try {
       const stored = localStorage.getItem(CART_KEY)
@@ -26,10 +36,19 @@ export function CartProvider({ children }) {
   }, [items])
 
   useEffect(() => {
+    if (appliedCoupon) {
+      localStorage.setItem(COUPON_KEY, JSON.stringify(appliedCoupon))
+    } else {
+      localStorage.removeItem(COUPON_KEY)
+    }
+  }, [appliedCoupon])
+
+  useEffect(() => {
     let cancelled = false
     const checkDiscount = async () => {
       if (!user) {
         setNewCustomerEligible(false)
+        setAppliedCoupon(null)
         return
       }
       try {
@@ -44,6 +63,38 @@ export function CartProvider({ children }) {
       cancelled = true
     }
   }, [user])
+
+  const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  // Re-validate coupon when cart total or user changes
+  useEffect(() => {
+    let cancelled = false
+    const refreshCoupon = async () => {
+      if (!user || !appliedCoupon?.code) return
+      try {
+        const { data } = await api.post('/payments/validate-coupon', {
+          code: appliedCoupon.code,
+          itemsPrice: cartTotal
+        })
+        if (!cancelled) {
+          setAppliedCoupon({
+            code: data.code,
+            discountPercent: data.discountPercent,
+            discountAmount: data.discountAmount
+          })
+        }
+      } catch (err) {
+        if (!cancelled && err.response?.status === 400) {
+          setAppliedCoupon(null)
+          toast.error(err.response?.data?.message || 'Coupon no longer valid')
+        }
+      }
+    }
+    refreshCoupon()
+    return () => {
+      cancelled = true
+    }
+  }, [user, cartTotal, appliedCoupon?.code])
 
   const addToCart = (product, size, quantity = 1) => {
     setItems(prev => {
@@ -85,11 +136,53 @@ export function CartProvider({ children }) {
   const clearCart = () => {
     setItems([])
     setNewCustomerEligible(false)
+    setAppliedCoupon(null)
   }
 
-  const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const applyCoupon = async (code) => {
+    if (!user) {
+      toast.error('Sign in to apply a coupon')
+      return false
+    }
+    const trimmed = String(code || '').trim()
+    if (!trimmed) {
+      toast.error('Enter a coupon code')
+      return false
+    }
+    setCouponLoading(true)
+    try {
+      const { data } = await api.post('/payments/validate-coupon', {
+        code: trimmed,
+        itemsPrice: cartTotal
+      })
+      setAppliedCoupon({
+        code: data.code,
+        discountPercent: data.discountPercent,
+        discountAmount: data.discountAmount
+      })
+      toast.success(`${data.code} applied — ${data.discountPercent}% off`)
+      return true
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Invalid coupon')
+      return false
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null)
+    toast.success('Coupon removed')
+  }
+
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
-  const discountAmount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible)
+  const welcomeDiscount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible && !appliedCoupon)
+  const discountAmount = appliedCoupon
+    ? Number(appliedCoupon.discountAmount) || 0
+    : welcomeDiscount
+  const discountLabel = appliedCoupon
+    ? `${appliedCoupon.code} (${appliedCoupon.discountPercent}% off)`
+    : null
   const shippingCost = calculateShipping(cartTotal)
   const tax = 0 // GST disabled for now
   const orderTotal = cartTotal - discountAmount + shippingCost + tax
@@ -98,7 +191,8 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items, addToCart, updateQuantity, removeFromCart, clearCart,
       cartTotal, cartCount, shippingCost, tax, orderTotal,
-      discountAmount, newCustomerEligible
+      discountAmount, newCustomerEligible,
+      appliedCoupon, applyCoupon, removeCoupon, couponLoading, discountLabel
     }}>
       {children}
     </CartContext.Provider>

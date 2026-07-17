@@ -11,14 +11,25 @@ const { calculateNewCustomerDiscount } = require('./newCustomerDiscount');
 
 const calculatePrices = (items, options = {}) => {
   const itemsPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = calculateNewCustomerDiscount(itemsPrice, Boolean(options.newCustomerDiscount));
+  let discountAmount = 0;
+  let discountCode = null;
+
+  if (options.discountAmount != null) {
+    discountAmount = Number(options.discountAmount) || 0;
+    discountCode = discountAmount > 0 ? options.discountCode || null : null;
+  } else {
+    const discount = calculateNewCustomerDiscount(itemsPrice, Boolean(options.newCustomerDiscount));
+    discountAmount = discount.discountAmount;
+    discountCode = discount.discountAmount > 0 ? discount.discountCode : null;
+  }
+
   const shippingPrice = calculateShipping(itemsPrice);
   const taxPrice = 0; // GST disabled for now
-  const totalAmount = discount.discountedItemsPrice + shippingPrice + taxPrice;
+  const totalAmount = Math.round((itemsPrice - discountAmount + shippingPrice + taxPrice) * 100) / 100;
   return {
     itemsPrice,
-    discountAmount: discount.discountAmount,
-    discountCode: discount.discountAmount > 0 ? discount.discountCode : null,
+    discountAmount,
+    discountCode,
     shippingPrice,
     taxPrice,
     totalAmount

@@ -162,6 +162,38 @@ async function applyMigrations() {
     `);
     console.log('Migration applied: added discount columns to orders');
   }
+
+  const [inviteCoupons] = await db.query("SHOW TABLES LIKE 'invite_coupons'");
+  if (!inviteCoupons.length) {
+    await db.query(`
+      CREATE TABLE invite_coupons (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 10,
+        first_order_only TINYINT(1) NOT NULL DEFAULT 1,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE TABLE invite_coupon_customers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        coupon_id INT NOT NULL,
+        email VARCHAR(255) NULL,
+        phone VARCHAR(10) NULL,
+        used_at DATETIME NULL,
+        used_order_id VARCHAR(50) NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (coupon_id) REFERENCES invite_coupons(id) ON DELETE CASCADE,
+        INDEX idx_invite_coupon_email (coupon_id, email),
+        INDEX idx_invite_coupon_phone (coupon_id, phone)
+      )
+    `);
+    console.log('Migration applied: invite_coupons tables');
+  }
+
+  const { ensureDefaultInviteCoupon } = require('../utils/inviteCoupon');
+  await ensureDefaultInviteCoupon();
 }
 
 module.exports = {

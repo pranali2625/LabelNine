@@ -30,6 +30,7 @@ export async function openMagicCheckout({
   user,
   contact,
   paymentMethod = 'RAZORPAY',
+  couponCode = null,
   onSuccess,
   onDismiss
 }) {
@@ -50,7 +51,8 @@ export async function openMagicCheckout({
       quantity: i.quantity
     })),
     contact: { name, phone, email },
-    paymentMethod: 'RAZORPAY'
+    paymentMethod: 'RAZORPAY',
+    ...(couponCode ? { couponCode } : {})
   })
 
   const orderId = data.order.orderId
