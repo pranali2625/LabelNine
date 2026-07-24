@@ -26,18 +26,26 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.4.1",
+    "express-rate-limit": "^8.6.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.1",
-    "multer": "^2.1.1",
+    "morgan": "^1.11.0",
+    "multer": "^2.2.0",
     "mysql2": "^3.14.1",
-    "nodemailer": "^8.0.7",
+    "nodemailer": "^9.0.3",
     "razorpay": "^2.9.6",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
     "mysql-memory-server": "^1.14.1",
     "nodemon": "^3.1.14"
+  },
+  "overrides": {
+    "axios": "^1.18.1",
+    "form-data": "^4.0.6",
+    "brace-expansion": "^5.0.7",
+    "qs": "^6.15.2",
+    "body-parser": "^2.3.0",
+    "adm-zip": "^0.6.0"
   }
 }
