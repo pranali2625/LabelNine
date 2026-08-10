@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
@@ -27,11 +27,22 @@ const OUR_STORY_IMAGES = [
   { src: '/images/our-story-packaging.png', alt: 'Premium Label Nine packaging' },
 ]
 
+/* Restore after 15 Aug — original yellow promo strip
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
   'SECURE ONLINE PAYMENT',
   'EASY 3-DAY RETURNS',
   'CRAFTED WITH CARE',
+]
+*/
+
+// Freedom Sale promo strip — remove after 15 Aug
+const FREEDOM_SALE_HIGHLIGHTS = [
+  'HAPPY INDEPENDENCE DAY',
+  'FREEDOM SALE IS LIVE NOW',
+  'FLAT 15% OFF ON ALL PRODUCTS',
+  'USE CODE: FREEDOM15',
+  'WHITE SHIRT — JUST FOR ₹999',
 ]
 
 const TRUST_BADGES = [
@@ -89,7 +100,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Promo strip */}
+      {/* Restore after 15 Aug — original yellow promo strip
       <section className="bg-amber-400 py-3.5 md:py-4 overflow-hidden">
         <div className="marquee-track items-center">
           {[...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS].map((text, i) => (
@@ -102,6 +113,30 @@ export default function Home() {
           ))}
         </div>
       </section>
+      */}
+
+      {/* Freedom Sale gradient strip — remove after 15 Aug */}
+      <section
+        className="py-2.5 md:py-3 overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #FF9933 0%, #FFCC80 22%, #FFF8F0 42%, #F5FFF5 58%, #81C784 78%, #138808 100%)',
+        }}
+      >
+        <div className="marquee-track items-center">
+          {[...FREEDOM_SALE_HIGHLIGHTS, ...FREEDOM_SALE_HIGHLIGHTS, ...FREEDOM_SALE_HIGHLIGHTS, ...FREEDOM_SALE_HIGHLIGHTS].map((text, i) => (
+            <span
+              key={`${text}-${i}`}
+              className="text-[13px] md:text-sm font-extrabold tracking-[0.12em] whitespace-nowrap px-10 md:px-16 flex-shrink-0 text-neutral-950"
+              style={{ textShadow: '0 1px 0 rgba(255,255,255,0.85), 0 0 8px rgba(255,255,255,0.7)' }}
+            >
+              {text}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* Independence Day Freedom Sale banners — remove after 15 Aug */}
+      <FreedomSaleBanner />
 
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -208,6 +243,106 @@ export default function Home() {
         </Link>
       </section>
     </div>
+  )
+}
+
+function FreedomSaleBanner() {
+  const slides = [
+    {
+      src: '/images/home/freedom-sale-offer.png',
+      alt: 'Label Nine Freedom Sale — Flat 15% off with code FREEDOM15',
+    },
+    {
+      src: '/images/home/freedom-sale-white-shirt.png',
+      alt: 'Label Nine Freedom Sale — Premium white shirt at just ₹999',
+    },
+  ]
+
+  const [index, setIndex] = useState(0)
+  const total = slides.length
+  const touchStart = useRef(null)
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    if (total <= 1) return
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % total)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [total, index])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || total <= 1) return
+
+    const onTouchStart = (e) => {
+      touchStart.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      }
+    }
+
+    const onTouchMove = (e) => {
+      if (!touchStart.current) return
+      const dx = e.touches[0].clientX - touchStart.current.x
+      const dy = e.touches[0].clientY - touchStart.current.y
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        e.preventDefault()
+      }
+    }
+
+    const onTouchEnd = (e) => {
+      if (!touchStart.current) return
+      const dx = e.changedTouches[0].clientX - touchStart.current.x
+      if (Math.abs(dx) >= 50) {
+        setIndex((i) => {
+          const next = dx < 0 ? i + 1 : i - 1
+          return (next + total) % total
+        })
+      }
+      touchStart.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [total])
+
+  return (
+    <section
+      aria-label="Independence Day Freedom Sale"
+      className="relative w-full mt-4 sm:mt-5 md:mt-6 bg-[#F7F2E8]"
+    >
+      <div ref={containerRef} className="relative w-full select-none touch-pan-y">
+        {slides.map((slide, i) => (
+          <div
+            key={slide.src}
+            aria-hidden={i !== index}
+            className={
+              i === index
+                ? 'relative z-[1]'
+                : 'absolute inset-x-0 top-0 z-0 opacity-0 pointer-events-none'
+            }
+          >
+            <img
+              src={slide.src}
+              alt={slide.alt}
+              className={`w-full h-auto block pointer-events-none transition-opacity duration-700 ease-in-out ${
+                i === index ? 'opacity-100' : 'opacity-0'
+              }`}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              draggable={false}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
