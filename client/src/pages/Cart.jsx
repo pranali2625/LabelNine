@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { SHIPPING_THRESHOLD, FLAT_SHIPPING, NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
+import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Cart() {
   const {
@@ -104,7 +104,7 @@ export default function Cart() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
                 <span className={shippingCost === 0 ? 'text-green-600 font-medium' : ''}>
-                  {shippingCost === 0 ? 'FREE' : `₹{shippingCost}`}
+                  {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                 </span>
               </div>
               {welcomeDiscount > 0 && (
@@ -175,12 +175,6 @@ export default function Cart() {
                 <span>₹{orderTotal}</span>
               </div>
             </div>
-            {shippingCost > 0 && (
-              <div className="mt-4 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 p-3">
-                <Truck className="w-4 h-4 flex-shrink-0" />
-                <span>Orders above ₹{SHIPPING_THRESHOLD} include a ₹{FLAT_SHIPPING} shipping fee</span>
-              </div>
-            )}
             <button
               onClick={handleCheckout}
               className="w-full bg-black text-white py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-6 flex items-center justify-center gap-2"
