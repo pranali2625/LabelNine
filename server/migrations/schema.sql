@@ -150,6 +150,8 @@ CREATE TABLE IF NOT EXISTS invite_coupons (
   discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 10,
   first_order_only TINYINT(1) NOT NULL DEFAULT 1,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  is_public TINYINT(1) NOT NULL DEFAULT 0,
+  exclude_discounted_products TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

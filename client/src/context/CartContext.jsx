@@ -66,7 +66,7 @@ export function CartProvider({ children }) {
 
   const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  // Re-validate coupon when cart total or user changes
+  // Re-validate coupon when cart or user changes
   useEffect(() => {
     let cancelled = false
     const refreshCoupon = async () => {
@@ -74,13 +74,20 @@ export function CartProvider({ children }) {
       try {
         const { data } = await api.post('/payments/validate-coupon', {
           code: appliedCoupon.code,
-          itemsPrice: cartTotal
+          itemsPrice: cartTotal,
+          items: items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            size: i.size
+          }))
         })
         if (!cancelled) {
           setAppliedCoupon({
             code: data.code,
             discountPercent: data.discountPercent,
-            discountAmount: data.discountAmount
+            discountAmount: data.discountAmount,
+            excludeDiscountedProducts: data.excludeDiscountedProducts,
+            eligibleSubtotal: data.eligibleSubtotal
           })
         }
       } catch (err) {
@@ -94,7 +101,7 @@ export function CartProvider({ children }) {
     return () => {
       cancelled = true
     }
-  }, [user, cartTotal, appliedCoupon?.code])
+  }, [user, cartTotal, items, appliedCoupon?.code])
 
   const addToCart = (product, size, quantity = 1) => {
     setItems(prev => {
@@ -114,6 +121,7 @@ export function CartProvider({ children }) {
         image: product.images[0]?.url || '',
         price: product.discountedPrice || product.price,
         originalPrice: product.price,
+        hasProductDiscount: product.discountedPrice != null,
         size,
         quantity,
         variety: product.variety
@@ -153,14 +161,24 @@ export function CartProvider({ children }) {
     try {
       const { data } = await api.post('/payments/validate-coupon', {
         code: trimmed,
-        itemsPrice: cartTotal
+        itemsPrice: cartTotal,
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          size: i.size
+        }))
       })
       setAppliedCoupon({
         code: data.code,
         discountPercent: data.discountPercent,
-        discountAmount: data.discountAmount
+        discountAmount: data.discountAmount,
+        excludeDiscountedProducts: data.excludeDiscountedProducts,
+        eligibleSubtotal: data.eligibleSubtotal
       })
-      toast.success(`${data.code} applied — ${data.discountPercent}% off`)
+      const saleNote = data.excludeDiscountedProducts
+        ? ' (sale items excluded)'
+        : ''
+      toast.success(`${data.code} applied — ${data.discountPercent}% off${saleNote}`)
       return true
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid coupon')

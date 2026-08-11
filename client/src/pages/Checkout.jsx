@@ -140,7 +140,10 @@ export default function Checkout() {
                 )}
                 {couponDiscount > 0 && appliedCoupon && (
                   <div className="flex justify-between text-green-700">
-                    <span>{appliedCoupon.code} ({appliedCoupon.discountPercent}% off)</span>
+                    <span>
+                      {appliedCoupon.code} ({appliedCoupon.discountPercent}% off
+                      {appliedCoupon.excludeDiscountedProducts ? ', sale items excluded' : ''})
+                    </span>
                     <span>−₹{couponDiscount}</span>
                   </div>
                 )}

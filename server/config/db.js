@@ -172,6 +172,8 @@ async function applyMigrations() {
         discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 10,
         first_order_only TINYINT(1) NOT NULL DEFAULT 1,
         is_active TINYINT(1) NOT NULL DEFAULT 1,
+        is_public TINYINT(1) NOT NULL DEFAULT 0,
+        exclude_discounted_products TINYINT(1) NOT NULL DEFAULT 0,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -192,8 +194,19 @@ async function applyMigrations() {
     console.log('Migration applied: invite_coupons tables');
   }
 
-  const { ensureDefaultInviteCoupon } = require('../utils/inviteCoupon');
+  const [publicCol] = await db.query("SHOW COLUMNS FROM invite_coupons LIKE 'is_public'");
+  if (!publicCol.length) {
+    await db.query(`
+      ALTER TABLE invite_coupons
+      ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active,
+      ADD COLUMN exclude_discounted_products TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public
+    `);
+    console.log('Migration applied: invite_coupons public / exclude_discounted columns');
+  }
+
+  const { ensureDefaultInviteCoupon, ensureFreedomSaleCoupon } = require('../utils/inviteCoupon');
   await ensureDefaultInviteCoupon();
+  await ensureFreedomSaleCoupon();
 }
 
 module.exports = {

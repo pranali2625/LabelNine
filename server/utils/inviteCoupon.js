@@ -13,9 +13,49 @@ function normalizeCouponCode(code) {
     .replace(/\s+/g, '');
 }
 
+function mapCouponRow(coupon) {
+  if (!coupon) return null;
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    discountPercent: Number(coupon.discount_percent),
+    firstOrderOnly: Boolean(coupon.first_order_only),
+    isPublic: Boolean(coupon.is_public),
+    excludeDiscountedProducts: Boolean(coupon.exclude_discounted_products),
+    isActive: Boolean(coupon.is_active)
+  };
+}
+
 /**
- * Resolve an invite coupon for a user.
- * Rules: active code, allowlisted email/phone, unused, first-order if required.
+ * Sum of line totals eligible for a coupon.
+ * When excludeDiscountedProducts is set, sale-priced products (discountedPrice) are skipped.
+ */
+function getCouponEligibleSubtotal(items, coupon, fallbackItemsPrice = 0) {
+  if (!coupon?.excludeDiscountedProducts) {
+    if (Array.isArray(items) && items.length) {
+      return roundMoney(
+        items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0)
+      );
+    }
+    return roundMoney(Number(fallbackItemsPrice) || 0);
+  }
+
+  if (!Array.isArray(items) || !items.length) {
+    return 0;
+  }
+
+  return roundMoney(
+    items.reduce((sum, i) => {
+      if (i.hasProductDiscount) return sum;
+      return sum + (Number(i.price) || 0) * (Number(i.quantity) || 0);
+    }, 0)
+  );
+}
+
+/**
+ * Resolve a coupon for a user.
+ * - Public codes (e.g. FREEDOM15): any signed-in user, reusable
+ * - Invite codes: allowlisted email/phone, unused, optional first-order-only
  */
 async function resolveInviteCoupon(user, code) {
   const normalized = normalizeCouponCode(code);
@@ -27,15 +67,32 @@ async function resolveInviteCoupon(user, code) {
   const phone = normalizePhone(user.phone);
 
   const [couponRows] = await pool.query(
-    `SELECT id, code, discount_percent, first_order_only, is_active
+    `SELECT id, code, discount_percent, first_order_only, is_active,
+            is_public, exclude_discounted_products
      FROM invite_coupons
      WHERE code = ?
      LIMIT 1`,
     [normalized]
   );
-  const coupon = couponRows[0];
-  if (!coupon || !coupon.is_active) {
+  const coupon = mapCouponRow(couponRows[0]);
+  if (!coupon || !coupon.isActive) {
     return { ok: false, message: 'Invalid coupon code' };
+  }
+
+  if (coupon.isPublic) {
+    if (coupon.firstOrderOnly) {
+      const eligible = await isEligibleForNewCustomerDiscount(user);
+      if (!eligible) {
+        return { ok: false, message: 'This coupon is only valid on your first order' };
+      }
+    }
+    return {
+      ok: true,
+      coupon: {
+        ...coupon,
+        allowlistId: null
+      }
+    };
   }
 
   const [allowRows] = await pool.query(
@@ -58,7 +115,7 @@ async function resolveInviteCoupon(user, code) {
     return { ok: false, message: 'This coupon has already been used' };
   }
 
-  if (Number(coupon.first_order_only)) {
+  if (coupon.firstOrderOnly) {
     const eligible = await isEligibleForNewCustomerDiscount(user);
     if (!eligible) {
       return { ok: false, message: 'This coupon is only valid on your first order' };
@@ -68,43 +125,48 @@ async function resolveInviteCoupon(user, code) {
   return {
     ok: true,
     coupon: {
-      id: coupon.id,
-      code: coupon.code,
-      discountPercent: Number(coupon.discount_percent),
+      ...coupon,
       allowlistId: allow.id
     }
   };
 }
 
-function calculateInviteCouponDiscount(itemsPrice, coupon) {
-  const subtotal = Number(itemsPrice) || 0;
+function calculateInviteCouponDiscount(itemsPrice, coupon, items = null) {
+  const fullSubtotal = Number(itemsPrice) || 0;
   const percent = Number(coupon?.discountPercent) || 0;
-  if (!coupon || subtotal <= 0 || percent <= 0) {
+  const eligibleSubtotal = getCouponEligibleSubtotal(items, coupon, fullSubtotal);
+
+  if (!coupon || eligibleSubtotal <= 0 || percent <= 0) {
     return {
       eligible: false,
       discountPercent: percent,
       discountCode: coupon?.code || null,
       discountAmount: 0,
-      discountedItemsPrice: subtotal,
-      allowlistId: coupon?.allowlistId || null
+      discountedItemsPrice: fullSubtotal,
+      eligibleSubtotal,
+      allowlistId: coupon?.allowlistId || null,
+      excludeDiscountedProducts: Boolean(coupon?.excludeDiscountedProducts)
     };
   }
 
-  const discountAmount = roundMoney(subtotal * (percent / 100));
+  const discountAmount = roundMoney(eligibleSubtotal * (percent / 100));
   return {
     eligible: true,
     discountPercent: percent,
     discountCode: coupon.code,
     discountAmount,
-    discountedItemsPrice: roundMoney(subtotal - discountAmount),
-    allowlistId: coupon.allowlistId
+    discountedItemsPrice: roundMoney(fullSubtotal - discountAmount),
+    eligibleSubtotal,
+    allowlistId: coupon.allowlistId,
+    excludeDiscountedProducts: Boolean(coupon.excludeDiscountedProducts)
   };
 }
 
 /**
- * Stack invite coupon + WELCOME10 when both apply (additive on subtotal).
+ * Stack invite/public coupon + WELCOME10 when both apply (additive on their bases).
+ * Coupon may exclude product-sale lines; welcome still uses full itemsPrice.
  */
-async function resolveOrderDiscount(user, itemsPrice, couponCode) {
+async function resolveOrderDiscount(user, itemsPrice, couponCode, items = null) {
   const {
     calculateNewCustomerDiscount,
     NEW_CUSTOMER_DISCOUNT_CODE
@@ -119,8 +181,19 @@ async function resolveOrderDiscount(user, itemsPrice, couponCode) {
     if (!resolved.ok) {
       return { ok: false, message: resolved.message };
     }
-    invitePart = calculateInviteCouponDiscount(subtotal, resolved.coupon);
+    invitePart = calculateInviteCouponDiscount(subtotal, resolved.coupon, items);
     allowlistId = resolved.coupon.allowlistId;
+
+    if (
+      resolved.coupon.excludeDiscountedProducts &&
+      (invitePart.eligibleSubtotal || 0) <= 0 &&
+      subtotal > 0
+    ) {
+      return {
+        ok: false,
+        message: 'This coupon does not apply to sale-priced products'
+      };
+    }
   }
 
   const eligible = await isEligibleForNewCustomerDiscount(user);
@@ -150,7 +223,9 @@ async function resolveOrderDiscount(user, itemsPrice, couponCode) {
       discountAmount: snapped.discountAmount,
       discountedItemsPrice: snapped.totalAmount,
       welcomeAmount,
-      inviteAmount
+      inviteAmount,
+      eligibleSubtotal: invitePart?.eligibleSubtotal ?? subtotal,
+      excludeDiscountedProducts: Boolean(invitePart?.excludeDiscountedProducts)
     },
     allowlistId
   };
@@ -174,6 +249,12 @@ async function markInviteCouponUsedForUser(user, code, orderId) {
     .filter((c) => c && c !== NEW_CUSTOMER_DISCOUNT_CODE);
   const normalized = parts[0];
   if (!normalized || !user) return;
+
+  const [couponRows] = await pool.query(
+    `SELECT id, is_public FROM invite_coupons WHERE code = ? LIMIT 1`,
+    [normalized]
+  );
+  if (!couponRows.length || couponRows[0].is_public) return;
 
   const email = normalizeEmail(user.email);
   const phone = normalizePhone(user.phone);
@@ -203,12 +284,38 @@ async function ensureDefaultInviteCoupon() {
   );
 }
 
+/** Freedom Sale — public 15% off full-price products only (skips sale-priced items). */
+async function ensureFreedomSaleCoupon() {
+  const [rows] = await pool.query(
+    `SELECT id FROM invite_coupons WHERE code = 'FREEDOM15' LIMIT 1`
+  );
+  if (rows.length) {
+    await pool.query(
+      `UPDATE invite_coupons
+       SET discount_percent = 15,
+           first_order_only = 0,
+           is_public = 1,
+           exclude_discounted_products = 1,
+           is_active = 1
+       WHERE code = 'FREEDOM15'`
+    );
+    return;
+  }
+  await pool.query(
+    `INSERT INTO invite_coupons
+      (code, discount_percent, first_order_only, is_active, is_public, exclude_discounted_products)
+     VALUES ('FREEDOM15', 15, 0, 1, 1, 1)`
+  );
+}
+
 module.exports = {
   normalizeCouponCode,
   resolveInviteCoupon,
   calculateInviteCouponDiscount,
+  getCouponEligibleSubtotal,
   resolveOrderDiscount,
   markInviteCouponUsed,
   markInviteCouponUsedForUser,
-  ensureDefaultInviteCoupon
+  ensureDefaultInviteCoupon,
+  ensureFreedomSaleCoupon
 };

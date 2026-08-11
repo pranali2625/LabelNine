@@ -71,12 +71,13 @@ router.post('/', protect, async (req, res) => {
         image: product.images[0]?.url || '',
         size: item.size,
         quantity: item.quantity,
-        price: product.discountedPrice || product.price
+        price: product.discountedPrice || product.price,
+        hasProductDiscount: product.discountedPrice != null && product.discountedPrice !== ''
       });
     }
 
     const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode);
+    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode, orderItems);
     if (!resolved.ok) {
       return res.status(400).json({ success: false, message: resolved.message });
     }

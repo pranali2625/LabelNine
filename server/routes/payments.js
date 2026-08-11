@@ -257,18 +257,57 @@ router.get('/new-customer-discount', protect, async (req, res) => {
 // @desc  Validate an invite coupon for the logged-in user
 router.post('/validate-coupon', protect, async (req, res) => {
   try {
-    const { code, itemsPrice = 0 } = req.body || {};
+    const { code, itemsPrice = 0, items = [] } = req.body || {};
     const resolved = await resolveInviteCoupon(req.user, code);
     if (!resolved.ok) {
       return res.status(400).json({ success: false, message: resolved.message });
     }
-    const discount = calculateInviteCouponDiscount(itemsPrice, resolved.coupon);
+
+    // Prefer server-side product lookup so sale items are excluded correctly
+    let pricedItems = Array.isArray(items) ? items : [];
+    if (pricedItems.length) {
+      const lookedUp = [];
+      for (const item of pricedItems) {
+        if (!item?.productId) continue;
+        const product = await Product.findById(item.productId);
+        if (!product || !product.isActive) continue;
+        lookedUp.push({
+          productId: product._id,
+          quantity: Number(item.quantity) || 1,
+          price: product.discountedPrice || product.price,
+          hasProductDiscount: product.discountedPrice != null && product.discountedPrice !== ''
+        });
+      }
+      pricedItems = lookedUp;
+    }
+
+    const subtotal =
+      pricedItems.length > 0
+        ? pricedItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+        : Number(itemsPrice) || 0;
+
+    const discount = calculateInviteCouponDiscount(subtotal, resolved.coupon, pricedItems);
+
+    if (
+      resolved.coupon.excludeDiscountedProducts &&
+      discount.eligibleSubtotal <= 0 &&
+      subtotal > 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'This coupon does not apply to sale-priced products'
+      });
+    }
+
     res.json({
       success: true,
       code: discount.discountCode,
       discountPercent: discount.discountPercent,
       discountAmount: discount.discountAmount,
-      firstOrderOnly: true
+      eligibleSubtotal: discount.eligibleSubtotal,
+      excludeDiscountedProducts: discount.excludeDiscountedProducts,
+      isPublic: Boolean(resolved.coupon.isPublic),
+      firstOrderOnly: Boolean(resolved.coupon.firstOrderOnly)
     });
   } catch (err) {
     console.error('Validate coupon error:', err);
@@ -333,12 +372,13 @@ router.post('/magic/create', protect, async (req, res) => {
         image: product.images[0]?.url || '',
         size: item.size,
         quantity: item.quantity,
-        price: product.discountedPrice || product.price
+        price: product.discountedPrice || product.price,
+        hasProductDiscount: product.discountedPrice != null && product.discountedPrice !== ''
       });
     }
 
     const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode);
+    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode, orderItems);
     if (!resolved.ok) {
       return res.status(400).json({ success: false, message: resolved.message });
     }

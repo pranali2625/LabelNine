@@ -286,7 +286,8 @@ router.get('/coupons', async (req, res) => {
   try {
     const { pool } = require('../config/db');
     const [coupons] = await pool.query(
-      `SELECT c.id, c.code, c.discount_percent, c.first_order_only, c.is_active, c.created_at,
+      `SELECT c.id, c.code, c.discount_percent, c.first_order_only, c.is_active,
+              c.is_public, c.exclude_discounted_products, c.created_at,
               COUNT(cc.id) AS customer_count,
               SUM(CASE WHEN cc.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used_count
        FROM invite_coupons c
@@ -301,6 +302,8 @@ router.get('/coupons', async (req, res) => {
         code: c.code,
         discountPercent: Number(c.discount_percent),
         firstOrderOnly: Boolean(c.first_order_only),
+        isPublic: Boolean(c.is_public),
+        excludeDiscountedProducts: Boolean(c.exclude_discounted_products),
         isActive: Boolean(c.is_active),
         customerCount: Number(c.customer_count || 0),
         usedCount: Number(c.used_count || 0),
@@ -318,7 +321,11 @@ router.post('/coupons', async (req, res) => {
     const { normalizeCouponCode } = require('../utils/inviteCoupon');
     const code = normalizeCouponCode(req.body?.code);
     const discountPercent = Number(req.body?.discountPercent ?? 10);
-    const firstOrderOnly = req.body?.firstOrderOnly !== false;
+    const isPublic = Boolean(req.body?.isPublic);
+    const excludeDiscountedProducts = Boolean(req.body?.excludeDiscountedProducts);
+    const firstOrderOnly = isPublic
+      ? Boolean(req.body?.firstOrderOnly)
+      : req.body?.firstOrderOnly !== false;
 
     if (!code || code.length < 3) {
       return res.status(400).json({ success: false, message: 'Coupon code must be at least 3 characters' });
@@ -328,9 +335,16 @@ router.post('/coupons', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO invite_coupons (code, discount_percent, first_order_only, is_active)
-       VALUES (?, ?, ?, 1)`,
-      [code, discountPercent, firstOrderOnly ? 1 : 0]
+      `INSERT INTO invite_coupons
+        (code, discount_percent, first_order_only, is_active, is_public, exclude_discounted_products)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+      [
+        code,
+        discountPercent,
+        firstOrderOnly ? 1 : 0,
+        isPublic ? 1 : 0,
+        excludeDiscountedProducts ? 1 : 0
+      ]
     );
 
     res.status(201).json({
@@ -340,6 +354,8 @@ router.post('/coupons', async (req, res) => {
         code,
         discountPercent,
         firstOrderOnly,
+        isPublic,
+        excludeDiscountedProducts,
         isActive: true,
         customerCount: 0,
         usedCount: 0
@@ -388,7 +404,9 @@ router.patch('/coupons/:code', async (req, res) => {
     await pool.query(`UPDATE invite_coupons SET ${updates.join(', ')} WHERE id = ?`, values);
 
     const [updated] = await pool.query(
-      `SELECT id, code, discount_percent, first_order_only, is_active FROM invite_coupons WHERE id = ?`,
+      `SELECT id, code, discount_percent, first_order_only, is_active,
+              is_public, exclude_discounted_products
+       FROM invite_coupons WHERE id = ?`,
       [coupons[0].id]
     );
     const c = updated[0];
@@ -399,6 +417,8 @@ router.patch('/coupons/:code', async (req, res) => {
         code: c.code,
         discountPercent: Number(c.discount_percent),
         firstOrderOnly: Boolean(c.first_order_only),
+        isPublic: Boolean(c.is_public),
+        excludeDiscountedProducts: Boolean(c.exclude_discounted_products),
         isActive: Boolean(c.is_active)
       }
     });
