@@ -10,7 +10,7 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, shippingCost, welcomeDiscount, couponDiscount, clearCart, appliedCoupon } = useCart()
+  const { items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -128,9 +128,7 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className={shippingCost === 0 ? 'text-green-600' : ''}>
-                    {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
-                  </span>
+                  <span className="text-green-600">FREE</span>
                 </div>
                 {welcomeDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
@@ -147,9 +145,6 @@ export default function Checkout() {
                     <span>−₹{couponDiscount}</span>
                   </div>
                 )}
-                <p className="text-xs text-gray-400">
-                  Final shipping is confirmed for your delivery address.
-                </p>
                 <div className="flex justify-between font-bold text-base border-t pt-2">
                   <span>Total</span>
                   <span>₹{orderTotal}</span>

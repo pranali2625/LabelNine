@@ -1,5 +1,5 @@
 const { env } = require('../config/env');
-const { calculateShipping } = require('../../shared/pricing');
+// const { calculateShipping } = require('../../shared/pricing'); // shipping fee disabled for now
 const { isMaharashtraPincode } = require('../../shared/maharashtra');
 
 function publicBaseUrl() {
@@ -95,8 +95,9 @@ function mapRazorpayAddress(addr = {}, fallbackContact = '') {
 }
 
 function shippingMethodsForOrder(order, addresses = []) {
-  const itemsPrice = Number(order?.itemsPrice || 0);
-  const shippingFeePaise = toPaise(calculateShipping(itemsPrice));
+  // Shipping fee disabled for now — always FREE
+  // const itemsPrice = Number(order?.itemsPrice || 0);
+  // const shippingFeePaise = toPaise(calculateShipping(itemsPrice));
 
   return addresses.map((addr) => {
     const zip = String(addr.zipcode || '').trim();
@@ -109,10 +110,10 @@ function shippingMethodsForOrder(order, addresses = []) {
       shipping_methods: [
         {
           id: 'standard',
-          name: shippingFeePaise === 0 ? 'Standard Delivery (Free)' : 'Standard Delivery',
+          name: 'Standard Delivery (Free)',
           description: 'Delivered in 4–6 business days across Maharashtra',
           serviceable,
-          shipping_fee: serviceable ? shippingFeePaise : 0,
+          shipping_fee: 0,
           // COD disabled for now — prepaid only
           cod: false,
           cod_fee: 0

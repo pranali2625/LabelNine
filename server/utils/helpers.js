@@ -6,7 +6,7 @@ const generateOrderId = () => {
   return `LN-${timestamp}-${random}`;
 };
 
-const { calculateShipping } = require('../../shared/pricing');
+// const { calculateShipping } = require('../../shared/pricing'); // shipping fee disabled for now
 const {
   calculateNewCustomerDiscount,
   snapPayableToWholeRupee
@@ -26,7 +26,9 @@ const calculatePrices = (items, options = {}) => {
     discountCode = discount.discountAmount > 0 ? discount.discountCode : null;
   }
 
-  const shippingPrice = calculateShipping(itemsPrice);
+  // Shipping fee disabled for now — always FREE
+  // const shippingPrice = calculateShipping(itemsPrice);
+  const shippingPrice = 0;
   const taxPrice = 0; // GST disabled for now
   const snapped = snapPayableToWholeRupee(itemsPrice, discountAmount, shippingPrice, taxPrice);
   return {

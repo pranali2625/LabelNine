@@ -8,7 +8,7 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 export default function Cart() {
   const {
     items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
-    shippingCost, welcomeDiscount, couponDiscount, newCustomerEligible,
+    welcomeDiscount, couponDiscount, newCustomerEligible,
     appliedCoupon, applyCoupon, removeCoupon, couponLoading
   } = useCart()
   const { user } = useAuth()
@@ -103,9 +103,7 @@ export default function Cart() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
-                <span className={shippingCost === 0 ? 'text-green-600 font-medium' : ''}>
-                  {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
-                </span>
+                <span className="text-green-600 font-medium">FREE</span>
               </div>
               {welcomeDiscount > 0 && (
                 <div className="flex justify-between text-green-700">

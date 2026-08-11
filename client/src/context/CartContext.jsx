@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { calculateShipping, calculateNewCustomerDiscount } from '../constants/pricing'
+import { calculateNewCustomerDiscount } from '../constants/pricing'
 import { useAuth } from './AuthContext'
 import api from '../services/api'
 
@@ -195,7 +195,9 @@ export function CartProvider({ children }) {
   const welcomeDiscount = calculateNewCustomerDiscount(cartTotal, newCustomerEligible)
   const couponDiscount = Number(appliedCoupon?.discountAmount) || 0
   const discountAmount = Math.round((welcomeDiscount + couponDiscount) * 100) / 100
-  const shippingCost = calculateShipping(cartTotal)
+  // Shipping fee disabled for now — always FREE
+  // const shippingCost = calculateShipping(cartTotal)
+  const shippingCost = 0
   const tax = 0 // GST disabled for now
   // Whole rupees only — drop paise (1399.1 → 1399)
   const orderTotal = Math.max(

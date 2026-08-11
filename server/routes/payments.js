@@ -66,7 +66,9 @@ function applyRazorpayCustomerDetails(order, rzpOrder) {
   );
   order.shippingAddress = shipping;
 
-  const shippingFee = fromPaise(rzpOrder.shipping_fee);
+  // Shipping fee disabled for now — always FREE (ignore Razorpay shipping_fee)
+  // const shippingFee = fromPaise(rzpOrder.shipping_fee);
+  const shippingFee = 0;
   const codFee = fromPaise(rzpOrder.cod_fee);
   order.shippingPrice = shippingFee + codFee;
   order.taxPrice = fromPaise(rzpOrder.tax_details?.total_tax) || 0;
