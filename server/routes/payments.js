@@ -263,7 +263,6 @@ router.post('/validate-coupon', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: resolved.message });
     }
 
-    // Prefer server-side product lookup so sale items are excluded correctly
     let pricedItems = Array.isArray(items) ? items : [];
     if (pricedItems.length) {
       const lookedUp = [];
@@ -274,8 +273,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
         lookedUp.push({
           productId: product._id,
           quantity: Number(item.quantity) || 1,
-          price: product.discountedPrice || product.price,
-          hasProductDiscount: product.discountedPrice != null && product.discountedPrice !== ''
+          price: product.discountedPrice || product.price
         });
       }
       pricedItems = lookedUp;
@@ -287,15 +285,16 @@ router.post('/validate-coupon', protect, async (req, res) => {
         : Number(itemsPrice) || 0;
 
     const discount = calculateInviteCouponDiscount(subtotal, resolved.coupon, pricedItems);
+    const productScoped =
+      Array.isArray(resolved.coupon.productIds) && resolved.coupon.productIds.length > 0;
+    const publicNeedsProducts = resolved.coupon.isPublic && !productScoped;
 
-    if (
-      resolved.coupon.excludeDiscountedProducts &&
-      discount.eligibleSubtotal <= 0 &&
-      subtotal > 0
-    ) {
+    if ((productScoped || publicNeedsProducts) && discount.eligibleSubtotal <= 0 && subtotal > 0) {
       return res.status(400).json({
         success: false,
-        message: 'This coupon does not apply to sale-priced products'
+        message: publicNeedsProducts
+          ? 'This coupon is not set up for any products yet'
+          : 'This coupon does not apply to items in your cart'
       });
     }
 
@@ -305,7 +304,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
       discountPercent: discount.discountPercent,
       discountAmount: discount.discountAmount,
       eligibleSubtotal: discount.eligibleSubtotal,
-      excludeDiscountedProducts: discount.excludeDiscountedProducts,
+      productScoped,
       isPublic: Boolean(resolved.coupon.isPublic),
       firstOrderOnly: Boolean(resolved.coupon.firstOrderOnly)
     });

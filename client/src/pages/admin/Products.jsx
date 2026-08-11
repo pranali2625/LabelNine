@@ -294,7 +294,6 @@ export default function AdminProducts() {
                     <div>
                       <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">DISCOUNTED PRICE (₹)</label>
                       <input name="discountedPrice" type="number" value={form.discountedPrice} onChange={handleChange} className="w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black" />
-                      <p className="text-[11px] text-gray-400 mt-1">If set, FREEDOM15 / sale coupons skip this product</p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold tracking-wider text-gray-600 mb-1">FABRIC</label>

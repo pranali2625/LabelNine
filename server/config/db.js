@@ -204,6 +204,20 @@ async function applyMigrations() {
     console.log('Migration applied: invite_coupons public / exclude_discounted columns');
   }
 
+  const [couponProducts] = await db.query("SHOW TABLES LIKE 'invite_coupon_products'");
+  if (!couponProducts.length) {
+    await db.query(`
+      CREATE TABLE invite_coupon_products (
+        coupon_id INT NOT NULL,
+        product_id INT NOT NULL,
+        PRIMARY KEY (coupon_id, product_id),
+        FOREIGN KEY (coupon_id) REFERENCES invite_coupons(id) ON DELETE CASCADE,
+        INDEX idx_invite_coupon_product (product_id)
+      )
+    `);
+    console.log('Migration applied: invite_coupon_products table');
+  }
+
   const { ensureDefaultInviteCoupon, ensureFreedomSaleCoupon } = require('../utils/inviteCoupon');
   await ensureDefaultInviteCoupon();
   await ensureFreedomSaleCoupon();

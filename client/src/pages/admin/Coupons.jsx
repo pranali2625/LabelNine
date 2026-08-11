@@ -7,13 +7,13 @@ const emptyCreate = {
   code: '',
   discountPercent: 10,
   isPublic: false,
-  excludeDiscountedProducts: false,
   firstOrderOnly: true
 }
 const emptyCustomer = { email: '', phone: '' }
 
 export default function AdminCoupons() {
   const [coupons, setCoupons] = useState([])
+  const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState(emptyCreate)
@@ -24,6 +24,10 @@ export default function AdminCoupons() {
   const [addingCustomer, setAddingCustomer] = useState(false)
   const [toggling, setToggling] = useState(null)
   const [removing, setRemoving] = useState(null)
+  const [selectedProductIds, setSelectedProductIds] = useState([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [savingProducts, setSavingProducts] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
 
   const fetchCoupons = async () => {
     setLoading(true)
@@ -39,6 +43,10 @@ export default function AdminCoupons() {
 
   useEffect(() => {
     fetchCoupons()
+    api
+      .get('/admin/products')
+      .then(({ data }) => setAllProducts(data.products || []))
+      .catch(() => {})
   }, [])
 
   const loadCustomers = async (code) => {
@@ -54,15 +62,32 @@ export default function AdminCoupons() {
     }
   }
 
+  const loadCouponProducts = async (code) => {
+    setProductsLoading(true)
+    try {
+      const { data } = await api.get(`/admin/coupons/${encodeURIComponent(code)}/products`)
+      setSelectedProductIds((data.productIds || []).map(Number))
+    } catch {
+      toast.error('Failed to load coupon products')
+      setSelectedProductIds([])
+    } finally {
+      setProductsLoading(false)
+    }
+  }
+
   const toggleExpand = async (code) => {
     if (expanded === code) {
       setExpanded(null)
       setCustomers([])
+      setSelectedProductIds([])
+      setProductSearch('')
       return
     }
     setExpanded(code)
     setCustomerForm(emptyCustomer)
+    setProductSearch('')
     const coupon = coupons.find((c) => c.code === code)
+    await loadCouponProducts(code)
     if (!coupon?.isPublic) {
       await loadCustomers(code)
     }
@@ -76,10 +101,9 @@ export default function AdminCoupons() {
         code: createForm.code.trim(),
         discountPercent: Number(createForm.discountPercent),
         isPublic: createForm.isPublic,
-        excludeDiscountedProducts: createForm.excludeDiscountedProducts,
         firstOrderOnly: createForm.isPublic ? createForm.firstOrderOnly : true
       })
-      toast.success('Coupon created')
+      toast.success('Coupon created — open it to select products')
       setCreateForm(emptyCreate)
       fetchCoupons()
     } catch (err) {
@@ -141,14 +165,57 @@ export default function AdminCoupons() {
     }
   }
 
+  const toggleProduct = (productId) => {
+    const id = Number(productId)
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  const handleSaveProducts = async () => {
+    if (!expanded) return
+    setSavingProducts(true)
+    try {
+      const { data } = await api.put(`/admin/coupons/${encodeURIComponent(expanded)}/products`, {
+        productIds: selectedProductIds
+      })
+      const current = coupons.find((c) => c.code === expanded)
+      setCoupons((prev) =>
+        prev.map((c) =>
+          c.code === expanded ? { ...c, productCount: data.productCount } : c
+        )
+      )
+      toast.success(
+        data.appliesToAll
+          ? current?.isPublic
+            ? 'Saved — select products before customers can use this code'
+            : 'Saved — coupon applies to all products'
+          : `Saved — ${data.productCount} product${data.productCount === 1 ? '' : 's'} selected`
+      )
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save products')
+    } finally {
+      setSavingProducts(false)
+    }
+  }
+
+  const filteredProducts = allProducts.filter((p) => {
+    const q = productSearch.trim().toLowerCase()
+    if (!q) return true
+    return (
+      String(p.name || '').toLowerCase().includes(q) ||
+      String(p.variety || '').toLowerCase().includes(q)
+    )
+  })
+
   return (
     <div>
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold">Coupons</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Invite codes (allowlisted) or public sale codes like FREEDOM15. Product discounts set in
-            Products are never stacked with sale coupons that exclude discounted items.
+            Create a code, then select which products it applies to. Leave none selected to apply to
+            all products.
           </p>
         </div>
       </div>
@@ -190,35 +257,20 @@ export default function AdminCoupons() {
             {creating ? 'Creating…' : 'Create'}
           </button>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 text-sm text-gray-700">
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={createForm.isPublic}
-              onChange={(e) =>
-                setCreateForm((f) => ({
-                  ...f,
-                  isPublic: e.target.checked,
-                  firstOrderOnly: e.target.checked ? false : true,
-                  excludeDiscountedProducts: e.target.checked
-                    ? true
-                    : f.excludeDiscountedProducts
-                }))
-              }
-            />
-            Public (all signed-in users, no allowlist)
-          </label>
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={createForm.excludeDiscountedProducts}
-              onChange={(e) =>
-                setCreateForm((f) => ({ ...f, excludeDiscountedProducts: e.target.checked }))
-              }
-            />
-            Skip products that already have a discount
-          </label>
-        </div>
+        <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={createForm.isPublic}
+            onChange={(e) =>
+              setCreateForm((f) => ({
+                ...f,
+                isPublic: e.target.checked,
+                firstOrderOnly: e.target.checked ? false : true
+              }))
+            }
+          />
+          Public (all signed-in users, no allowlist)
+        </label>
       </form>
 
       {loading ? (
@@ -254,7 +306,12 @@ export default function AdminCoupons() {
                       <p className="text-xs text-gray-500">
                         {coupon.discountPercent}% off
                         {coupon.isPublic ? ' · public' : ' · invite only'}
-                        {coupon.excludeDiscountedProducts ? ' · skips sale items' : ''}
+                        {' · '}
+                        {coupon.productCount > 0
+                          ? `${coupon.productCount} product${coupon.productCount === 1 ? '' : 's'}`
+                          : coupon.isPublic
+                            ? 'no products selected'
+                            : 'all products'}
                         {coupon.firstOrderOnly ? ' · first order only' : ''}
                         {!coupon.isPublic && (
                           <>
@@ -289,16 +346,81 @@ export default function AdminCoupons() {
                 </div>
 
                 {isOpen && (
-                  <div className="border-t border-gray-200 px-4 py-4 bg-gray-50">
-                    {coupon.isPublic ? (
-                      <p className="text-sm text-gray-600">
-                        Public sale code — any signed-in customer can use it
-                        {coupon.excludeDiscountedProducts
-                          ? '. Products with a discounted price (set in Products) are excluded.'
-                          : '.'}
-                      </p>
-                    ) : (
-                      <>
+                  <div className="border-t border-gray-200 px-4 py-4 bg-gray-50 space-y-6">
+                    <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                        <div>
+                          <h3 className="text-sm font-semibold">Products this coupon applies to</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {coupon.isPublic
+                              ? selectedProductIds.length === 0
+                                ? 'Select at least one product (required for public sale codes)'
+                                : `${selectedProductIds.length} selected`
+                              : selectedProductIds.length === 0
+                                ? 'None selected = applies to every product'
+                                : `${selectedProductIds.length} selected`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProductIds([])}
+                            className="text-xs border border-gray-300 px-3 py-1.5 hover:bg-white"
+                          >
+                            {coupon.isPublic ? 'Clear selection' : 'Clear (all products)'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveProducts}
+                            disabled={savingProducts || productsLoading}
+                            className="text-xs bg-black text-white px-3 py-1.5 font-semibold hover:bg-gray-800 disabled:opacity-50"
+                          >
+                            {savingProducts ? 'Saving…' : 'Save products'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <input
+                        type="search"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        placeholder="Search products…"
+                        className="w-full mb-2 border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:border-black"
+                      />
+
+                      {productsLoading ? (
+                        <p className="text-xs text-gray-400">Loading…</p>
+                      ) : filteredProducts.length === 0 ? (
+                        <p className="text-xs text-gray-500">No products found.</p>
+                      ) : (
+                        <div className="bg-white border border-gray-200 max-h-64 overflow-y-auto">
+                          {filteredProducts.map((p) => {
+                            const id = Number(p._id || p.id)
+                            const checked = selectedProductIds.includes(id)
+                            return (
+                              <label
+                                key={id}
+                                className="flex items-center gap-3 px-3 py-2 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleProduct(id)}
+                                />
+                                <span className="text-sm flex-1 min-w-0 truncate">{p.name}</span>
+                                <span className="text-xs text-gray-400 shrink-0">
+                                  ₹{p.discountedPrice || p.price}
+                                  {p.discountedPrice ? ' (sale)' : ''}
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {!coupon.isPublic && (
+                      <div>
                         <h3 className="text-sm font-semibold mb-3">Allowlisted customers</h3>
 
                         <form
@@ -396,7 +518,7 @@ export default function AdminCoupons() {
                             </table>
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 )}

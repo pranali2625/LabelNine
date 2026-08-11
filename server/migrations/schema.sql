@@ -167,3 +167,11 @@ CREATE TABLE IF NOT EXISTS invite_coupon_customers (
   INDEX idx_invite_coupon_email (coupon_id, email),
   INDEX idx_invite_coupon_phone (coupon_id, phone)
 );
+
+CREATE TABLE IF NOT EXISTS invite_coupon_products (
+  coupon_id INT NOT NULL,
+  product_id INT NOT NULL,
+  PRIMARY KEY (coupon_id, product_id),
+  FOREIGN KEY (coupon_id) REFERENCES invite_coupons(id) ON DELETE CASCADE,
+  INDEX idx_invite_coupon_product (product_id)
+);

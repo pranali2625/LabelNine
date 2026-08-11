@@ -287,9 +287,10 @@ router.get('/coupons', async (req, res) => {
     const { pool } = require('../config/db');
     const [coupons] = await pool.query(
       `SELECT c.id, c.code, c.discount_percent, c.first_order_only, c.is_active,
-              c.is_public, c.exclude_discounted_products, c.created_at,
-              COUNT(cc.id) AS customer_count,
-              SUM(CASE WHEN cc.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used_count
+              c.is_public, c.created_at,
+              COUNT(DISTINCT cc.id) AS customer_count,
+              SUM(CASE WHEN cc.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used_count,
+              (SELECT COUNT(*) FROM invite_coupon_products cp WHERE cp.coupon_id = c.id) AS product_count
        FROM invite_coupons c
        LEFT JOIN invite_coupon_customers cc ON cc.coupon_id = c.id
        GROUP BY c.id
@@ -303,10 +304,10 @@ router.get('/coupons', async (req, res) => {
         discountPercent: Number(c.discount_percent),
         firstOrderOnly: Boolean(c.first_order_only),
         isPublic: Boolean(c.is_public),
-        excludeDiscountedProducts: Boolean(c.exclude_discounted_products),
         isActive: Boolean(c.is_active),
         customerCount: Number(c.customer_count || 0),
         usedCount: Number(c.used_count || 0),
+        productCount: Number(c.product_count || 0),
         createdAt: c.created_at
       }))
     });
@@ -322,10 +323,12 @@ router.post('/coupons', async (req, res) => {
     const code = normalizeCouponCode(req.body?.code);
     const discountPercent = Number(req.body?.discountPercent ?? 10);
     const isPublic = Boolean(req.body?.isPublic);
-    const excludeDiscountedProducts = Boolean(req.body?.excludeDiscountedProducts);
     const firstOrderOnly = isPublic
       ? Boolean(req.body?.firstOrderOnly)
       : req.body?.firstOrderOnly !== false;
+    const productIds = Array.isArray(req.body?.productIds)
+      ? [...new Set(req.body.productIds.map((id) => Number(id)).filter(Boolean))]
+      : [];
 
     if (!code || code.length < 3) {
       return res.status(400).json({ success: false, message: 'Coupon code must be at least 3 characters' });
@@ -337,15 +340,18 @@ router.post('/coupons', async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO invite_coupons
         (code, discount_percent, first_order_only, is_active, is_public, exclude_discounted_products)
-       VALUES (?, ?, ?, 1, ?, ?)`,
-      [
-        code,
-        discountPercent,
-        firstOrderOnly ? 1 : 0,
-        isPublic ? 1 : 0,
-        excludeDiscountedProducts ? 1 : 0
-      ]
+       VALUES (?, ?, ?, 1, ?, 0)`,
+      [code, discountPercent, firstOrderOnly ? 1 : 0, isPublic ? 1 : 0]
     );
+
+    if (productIds.length) {
+      for (const productId of productIds) {
+        await pool.query(
+          `INSERT IGNORE INTO invite_coupon_products (coupon_id, product_id) VALUES (?, ?)`,
+          [result.insertId, productId]
+        );
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -355,10 +361,10 @@ router.post('/coupons', async (req, res) => {
         discountPercent,
         firstOrderOnly,
         isPublic,
-        excludeDiscountedProducts,
         isActive: true,
         customerCount: 0,
-        usedCount: 0
+        usedCount: 0,
+        productCount: productIds.length
       }
     });
   } catch (err) {
@@ -404,8 +410,7 @@ router.patch('/coupons/:code', async (req, res) => {
     await pool.query(`UPDATE invite_coupons SET ${updates.join(', ')} WHERE id = ?`, values);
 
     const [updated] = await pool.query(
-      `SELECT id, code, discount_percent, first_order_only, is_active,
-              is_public, exclude_discounted_products
+      `SELECT id, code, discount_percent, first_order_only, is_active, is_public
        FROM invite_coupons WHERE id = ?`,
       [coupons[0].id]
     );
@@ -418,9 +423,69 @@ router.patch('/coupons/:code', async (req, res) => {
         discountPercent: Number(c.discount_percent),
         firstOrderOnly: Boolean(c.first_order_only),
         isPublic: Boolean(c.is_public),
-        excludeDiscountedProducts: Boolean(c.exclude_discounted_products),
         isActive: Boolean(c.is_active)
       }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/coupons/:code/products', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode, loadCouponProductIds } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.params.code);
+    const [coupons] = await pool.query(
+      `SELECT id, code FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+    const productIds = await loadCouponProductIds(coupons[0].id);
+    res.json({
+      success: true,
+      code: coupons[0].code,
+      productIds,
+      appliesToAll: productIds.length === 0
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/coupons/:code/products', async (req, res) => {
+  try {
+    const { pool } = require('../config/db');
+    const { normalizeCouponCode } = require('../utils/inviteCoupon');
+    const code = normalizeCouponCode(req.params.code);
+    const [coupons] = await pool.query(
+      `SELECT id, code FROM invite_coupons WHERE code = ? LIMIT 1`,
+      [code]
+    );
+    if (!coupons.length) {
+      return res.status(404).json({ success: false, message: 'Coupon not found' });
+    }
+
+    const productIds = Array.isArray(req.body?.productIds)
+      ? [...new Set(req.body.productIds.map((id) => Number(id)).filter(Boolean))]
+      : [];
+
+    await pool.query(`DELETE FROM invite_coupon_products WHERE coupon_id = ?`, [coupons[0].id]);
+    for (const productId of productIds) {
+      await pool.query(
+        `INSERT INTO invite_coupon_products (coupon_id, product_id) VALUES (?, ?)`,
+        [coupons[0].id, productId]
+      );
+    }
+
+    res.json({
+      success: true,
+      code: coupons[0].code,
+      productIds,
+      appliesToAll: productIds.length === 0,
+      productCount: productIds.length
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

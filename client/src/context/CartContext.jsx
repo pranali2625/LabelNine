@@ -86,7 +86,7 @@ export function CartProvider({ children }) {
             code: data.code,
             discountPercent: data.discountPercent,
             discountAmount: data.discountAmount,
-            excludeDiscountedProducts: data.excludeDiscountedProducts,
+            productScoped: data.productScoped,
             eligibleSubtotal: data.eligibleSubtotal
           })
         }
@@ -172,13 +172,11 @@ export function CartProvider({ children }) {
         code: data.code,
         discountPercent: data.discountPercent,
         discountAmount: data.discountAmount,
-        excludeDiscountedProducts: data.excludeDiscountedProducts,
+        productScoped: data.productScoped,
         eligibleSubtotal: data.eligibleSubtotal
       })
-      const saleNote = data.excludeDiscountedProducts
-        ? ' (sale items excluded)'
-        : ''
-      toast.success(`${data.code} applied — ${data.discountPercent}% off${saleNote}`)
+      const scopeNote = data.productScoped ? ' (selected products only)' : ''
+      toast.success(`${data.code} applied — ${data.discountPercent}% off${scopeNote}`)
       return true
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid coupon')
