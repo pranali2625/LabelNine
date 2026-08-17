@@ -73,7 +73,7 @@ async function loadCouponProductIds(couponId) {
 
 /**
  * Resolve a coupon for a user.
- * - Public codes (e.g. FREEDOM15): any signed-in user, reusable
+ * - Public codes: any signed-in user, reusable
  * - Invite codes: allowlisted email/phone, unused, optional first-order-only
  * Product scope comes from invite_coupon_products (empty = all products).
  */
@@ -309,27 +309,10 @@ async function ensureDefaultInviteCoupon() {
   );
 }
 
-/** Freedom Sale — public 15%; apply only to products linked in Admin → Coupons. */
-async function ensureFreedomSaleCoupon() {
-  const [rows] = await pool.query(
-    `SELECT id FROM invite_coupons WHERE code = 'FREEDOM15' LIMIT 1`
-  );
-  if (rows.length) {
-    await pool.query(
-      `UPDATE invite_coupons
-       SET discount_percent = 15,
-           first_order_only = 0,
-           is_public = 1,
-           exclude_discounted_products = 0,
-           is_active = 1
-       WHERE code = 'FREEDOM15'`
-    );
-    return;
-  }
+/** Freedom Sale ended — keep FREEDOM15 inactive if it still exists. */
+async function deactivateFreedomSaleCoupon() {
   await pool.query(
-    `INSERT INTO invite_coupons
-      (code, discount_percent, first_order_only, is_active, is_public, exclude_discounted_products)
-     VALUES ('FREEDOM15', 15, 0, 1, 1, 0)`
+    `UPDATE invite_coupons SET is_active = 0 WHERE code = 'FREEDOM15'`
   );
 }
 
@@ -343,5 +326,5 @@ module.exports = {
   markInviteCouponUsed,
   markInviteCouponUsedForUser,
   ensureDefaultInviteCoupon,
-  ensureFreedomSaleCoupon
+  deactivateFreedomSaleCoupon
 };

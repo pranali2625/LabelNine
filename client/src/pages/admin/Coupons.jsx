@@ -230,7 +230,7 @@ export default function AdminCoupons() {
             <input
               value={createForm.code}
               onChange={(e) => setCreateForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-              placeholder="FREEDOM15"
+              placeholder="SAVE10"
               className="w-full border border-gray-300 px-3 py-2 text-sm uppercase tracking-wide focus:outline-none focus:border-black"
               required
               minLength={3}

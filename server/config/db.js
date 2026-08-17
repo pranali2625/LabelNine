@@ -218,9 +218,9 @@ async function applyMigrations() {
     console.log('Migration applied: invite_coupon_products table');
   }
 
-  const { ensureDefaultInviteCoupon, ensureFreedomSaleCoupon } = require('../utils/inviteCoupon');
+  const { ensureDefaultInviteCoupon, deactivateFreedomSaleCoupon } = require('../utils/inviteCoupon');
   await ensureDefaultInviteCoupon();
-  await ensureFreedomSaleCoupon();
+  await deactivateFreedomSaleCoupon();
 }
 
 module.exports = {
