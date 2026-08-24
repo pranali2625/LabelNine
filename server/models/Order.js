@@ -235,8 +235,8 @@ class Order {
         order_id, user_id, shipping_name, shipping_phone, shipping_line1, shipping_line2,
         shipping_city, shipping_state, shipping_pincode, items_price, discount_amount, discount_code,
         shipping_price, tax_price, total_amount, payment_method, payment_status, order_status,
-        estimated_delivery
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        estimated_delivery, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.orderId,
         data.user,
@@ -256,7 +256,8 @@ class Order {
         data.paymentInfo?.method || 'COD',
         data.paymentInfo?.status || 'pending',
         data.orderStatus || 'placed',
-        estimatedDelivery
+        estimatedDelivery,
+        data.notes || null
       ]
     );
 

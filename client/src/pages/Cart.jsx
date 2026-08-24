@@ -4,12 +4,14 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
+import { RakhiGiftSummaryLine } from '../components/RakhiGiftOffer'
 
 export default function Cart() {
   const {
     items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
     welcomeDiscount, couponDiscount, newCustomerEligible,
-    appliedCoupon, applyCoupon, removeCoupon, couponLoading
+    appliedCoupon, applyCoupon, removeCoupon, couponLoading,
+    includeRakhiGift, setIncludeRakhiGift
   } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -105,6 +107,10 @@ export default function Cart() {
                 <span className="text-gray-600">Shipping</span>
                 <span className="text-green-600 font-medium">FREE</span>
               </div>
+              <RakhiGiftSummaryLine
+                includeRakhiGift={includeRakhiGift}
+                onToggle={setIncludeRakhiGift}
+              />
               {welcomeDiscount > 0 && (
                 <div className="flex justify-between text-green-700">
                   <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>

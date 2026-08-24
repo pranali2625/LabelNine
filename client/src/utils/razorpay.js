@@ -31,6 +31,7 @@ export async function openMagicCheckout({
   contact,
   paymentMethod = 'RAZORPAY',
   couponCode = null,
+  includeRakhiGift = true,
   onSuccess,
   onDismiss
 }) {
@@ -52,7 +53,8 @@ export async function openMagicCheckout({
     })),
     contact: { name, phone, email },
     paymentMethod: 'RAZORPAY',
-    ...(couponCode ? { couponCode } : {})
+    ...(couponCode ? { couponCode } : {}),
+    includeRakhiGift: includeRakhiGift !== false
   })
 
   const orderId = data.order.orderId

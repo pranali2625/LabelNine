@@ -347,7 +347,7 @@ router.post('/magic/create', protect, async (req, res) => {
       return res.status(503).json({ success: false, message: configError });
     }
 
-    const { items, contact, paymentMethod = 'RAZORPAY', couponCode } = req.body;
+    const { items, contact, paymentMethod = 'RAZORPAY', couponCode, includeRakhiGift } = req.body;
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in cart' });
     }
@@ -414,7 +414,10 @@ router.post('/magic/create', protect, async (req, res) => {
         taxPrice,
         totalAmount,
         paymentInfo: { method: preferredMethod, status: 'pending' },
-        orderStatus: 'placed'
+        orderStatus: 'placed',
+        notes: includeRakhiGift === false
+          ? 'Rakhi gift declined'
+          : 'Rakhi gift included (shirt + rakhi + chocolate + card)'
       },
       conn
     );

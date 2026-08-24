@@ -192,6 +192,9 @@ export default function AdminOrders() {
                           <p className="mt-2 text-gray-600">
                             Ship to: {order.shippingAddress?.name}, {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.pincode} | {order.shippingAddress?.phone}
                           </p>
+                          {order.notes && (
+                            <p className="mt-2 text-sm font-medium text-[#9B2C2C]">{order.notes}</p>
+                          )}
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <p className="font-semibold mb-2">Shiprocket</p>
                             {order.shiprocket?.orderId ? (

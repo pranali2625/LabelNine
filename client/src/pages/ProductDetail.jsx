@@ -8,6 +8,7 @@ import { AVAILABLE_SIZES } from '../components/SizeSelector'
 import api from '../services/api'
 import { useCart } from '../context/CartContext'
 import toast from 'react-hot-toast'
+import { RakhiGiftBadge, RakhiGiftBanner } from '../components/RakhiGiftOffer'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -84,9 +85,11 @@ export default function ProductDetail() {
           showDots
           aspectClass=""
           imgClassName="w-full h-auto block"
+          overlay={<RakhiGiftBadge />}
         />
 
         <div className="pt-2">
+          <RakhiGiftBanner />
           <p className="text-xs text-gray-500 tracking-[0.2em] mb-2">{product.variety}</p>
           <h1 className="text-2xl md:text-3xl font-bold mb-3">{product.name}</h1>
 

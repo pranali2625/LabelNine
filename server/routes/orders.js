@@ -24,7 +24,7 @@ const findUserOrder = (id, userId) =>
 router.post('/', protect, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { items, shippingAddress, paymentMethod = 'RAZORPAY', couponCode } = req.body;
+    const { items, shippingAddress, paymentMethod = 'RAZORPAY', couponCode, includeRakhiGift } = req.body;
 
     if (paymentMethod === 'COD') {
       return res.status(400).json({
@@ -102,6 +102,9 @@ router.post('/', protect, async (req, res) => {
       taxPrice,
       totalAmount,
       paymentInfo: { method: paymentMethod, status: 'pending' },
+      notes: includeRakhiGift === false
+        ? 'Rakhi gift declined'
+        : 'Rakhi gift included (shirt + rakhi + chocolate + card)',
       ...(isCOD && { orderStatus: 'confirmed' })
     }, conn);
 
