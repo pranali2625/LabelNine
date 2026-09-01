@@ -7,11 +7,10 @@ import toast from 'react-hot-toast'
 import { openMagicCheckout } from '../utils/razorpay'
 import { ShieldCheck, Smartphone } from 'lucide-react'
 import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
-import { RakhiGiftSummaryLine } from '../components/RakhiGiftOffer'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon, includeRakhiGift, setIncludeRakhiGift } = useCart()
+  const { items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -58,7 +57,6 @@ export default function Checkout() {
         contact,
         paymentMethod: 'RAZORPAY',
         couponCode: appliedCoupon?.code || null,
-        includeRakhiGift,
         onSuccess: (confirmed) => {
           clearCart()
           navigate(`/order-success/${confirmed.orderId}`)
@@ -132,10 +130,6 @@ export default function Checkout() {
                   <span className="text-gray-600">Shipping</span>
                   <span className="text-green-600">FREE</span>
                 </div>
-                <RakhiGiftSummaryLine
-                  includeRakhiGift={includeRakhiGift}
-                  onToggle={setIncludeRakhiGift}
-                />
                 {welcomeDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
                     <span>New customer ({NEW_CUSTOMER_DISCOUNT_PERCENT}% off)</span>

@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
-import { RakhiGiftBadge } from '../components/RakhiGiftOffer'
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
 
@@ -28,23 +27,11 @@ const OUR_STORY_IMAGES = [
   { src: '/images/our-story-packaging.png', alt: 'Premium Label Nine packaging' },
 ]
 
-/* Restore after 28 Aug — original yellow promo strip
 const PROMO_HIGHLIGHTS = [
   'PREMIUM MEN\'S SHIRTS',
   'SECURE ONLINE PAYMENT',
   'EASY 3-DAY RETURNS',
   'CRAFTED WITH CARE',
-]
-*/
-
-// Raksha Bandhan promo strip — remove after 28 Aug
-const RAKSHA_BANDHAN_HIGHLIGHTS = [
-  'HAPPY RAKSHA BANDHAN',
-  'SPECIAL GIFT HAMPER',
-  'SHIRT + RAKHI + CHOCOLATE + CARD',
-  '₹999 ONWARDS',
-  'VALID TILL 28 AUGUST',
-  'SINGLE-DAY DELIVERY IN KOLHAPUR',
 ]
 
 const TRUST_BADGES = [
@@ -102,7 +89,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Restore after 28 Aug — original yellow promo strip
       <section className="bg-amber-400 py-3.5 md:py-4 overflow-hidden">
         <div className="marquee-track items-center">
           {[...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS, ...PROMO_HIGHLIGHTS].map((text, i) => (
@@ -115,28 +101,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-      */}
-
-      {/* Raksha Bandhan promo strip — remove after 28 Aug */}
-      <section
-        className="py-2.5 md:py-3 overflow-hidden"
-        style={{ background: '#5A1A1B' }}
-      >
-        <div className="marquee-track items-center">
-          {[...RAKSHA_BANDHAN_HIGHLIGHTS, ...RAKSHA_BANDHAN_HIGHLIGHTS, ...RAKSHA_BANDHAN_HIGHLIGHTS, ...RAKSHA_BANDHAN_HIGHLIGHTS].map((text, i) => (
-            <span
-              key={`${text}-${i}`}
-              className="text-[13px] md:text-sm font-extrabold tracking-[0.12em] whitespace-nowrap px-10 md:px-16 flex-shrink-0"
-              style={{ color: '#F7F2E8' }}
-            >
-              {text}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* Raksha Bandhan gift hamper banners — remove after 28 Aug */}
-      <RakshaBandhanBanner />
 
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -243,112 +207,6 @@ export default function Home() {
         </Link>
       </section>
     </div>
-  )
-}
-
-function RakshaBandhanBanner() {
-  const slides = [
-    {
-      src: '/images/home/raksha-bandhan-hamper.png',
-      alt: 'Label Nine Raksha Bandhan special gift hamper — shirt, rakhi, chocolate and card, 24th to 28th August',
-    },
-    {
-      src: '/images/home/raksha-bandhan-gift.png',
-      alt: 'Label Nine Raksha Bandhan gift — choose his shirt from ₹999 onwards, valid till 28 August',
-    },
-  ]
-
-  const [index, setIndex] = useState(0)
-  const total = slides.length
-  const touchStart = useRef(null)
-  const containerRef = useRef(null)
-
-  useEffect(() => {
-    if (total <= 1) return
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % total)
-    }, 5000)
-    return () => clearInterval(timer)
-  }, [total, index])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el || total <= 1) return
-
-    const onTouchStart = (e) => {
-      touchStart.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      }
-    }
-
-    const onTouchMove = (e) => {
-      if (!touchStart.current) return
-      const dx = e.touches[0].clientX - touchStart.current.x
-      const dy = e.touches[0].clientY - touchStart.current.y
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
-        e.preventDefault()
-      }
-    }
-
-    const onTouchEnd = (e) => {
-      if (!touchStart.current) return
-      const dx = e.changedTouches[0].clientX - touchStart.current.x
-      if (Math.abs(dx) >= 50) {
-        setIndex((i) => {
-          const next = dx < 0 ? i + 1 : i - 1
-          return (next + total) % total
-        })
-      }
-      touchStart.current = null
-    }
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd, { passive: true })
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [total])
-
-  return (
-    <section
-      aria-label="Raksha Bandhan Gift Hamper"
-      className="relative w-full mt-4 sm:mt-5 md:mt-6 bg-[#F7F2E8]"
-    >
-      <div ref={containerRef} className="relative w-full select-none touch-pan-y">
-        {slides.map((slide, i) => (
-          <div
-            key={slide.src}
-            aria-hidden={i !== index}
-            className={
-              i === index
-                ? 'relative z-[1]'
-                : 'absolute inset-x-0 top-0 z-0 opacity-0 pointer-events-none'
-            }
-          >
-            <Link
-              to="/shop"
-              tabIndex={i === index ? 0 : -1}
-              className="block"
-            >
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                className={`w-full h-auto block pointer-events-none transition-opacity duration-700 ease-in-out ${
-                  i === index ? 'opacity-100' : 'opacity-0'
-                }`}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                draggable={false}
-              />
-            </Link>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -503,7 +361,6 @@ function ProductCard({ product }) {
           showDots
           showArrows={false}
           imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          overlay={<RakhiGiftBadge />}
         />
         {product.discountedPrice && (
           <span className="absolute top-2 left-2 bg-black text-white text-xs px-2 py-1 font-medium z-10">

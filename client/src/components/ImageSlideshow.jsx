@@ -20,7 +20,6 @@ export default function ImageSlideshow({
   imgClassName = 'w-full h-full object-cover',
   pauseOnHover = true,
   enableSwipe = true,
-  overlay = null,
 }) {
   const validImages = images.filter((img) => img?.url)
   const [failedUrls, setFailedUrls] = useState([])
@@ -144,7 +143,6 @@ export default function ImageSlideshow({
 
   return (
     <div className={className}>
-      <div className="relative">
       <div
         ref={containerRef}
         className={`relative bg-gray-100 overflow-hidden touch-pan-y select-none ${aspectClass}`}
@@ -162,8 +160,6 @@ export default function ImageSlideshow({
           onError={() => markImageFailed(currentUrl)}
         />
 
-        {overlay}
-
         {hasMultiple && autoPlay && (
           <button
             type="button"
@@ -172,7 +168,7 @@ export default function ImageSlideshow({
               e.stopPropagation()
               setAutoPlayPaused((p) => !p)
             }}
-            className="absolute top-2 left-2 bg-black/60 text-white p-2 hover:bg-black/80 transition-colors z-10"
+            className="absolute top-2 right-2 bg-black/60 text-white p-2 hover:bg-black/80 transition-colors z-10"
             aria-label={autoPlayPaused ? 'Resume slideshow' : 'Pause slideshow'}
           >
             {autoPlayPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
@@ -227,7 +223,6 @@ export default function ImageSlideshow({
             ))}
           </div>
         )}
-      </div>
       </div>
 
       {hasMultiple && showThumbnails && (

@@ -8,7 +8,6 @@ const CartContext = createContext(null)
 
 const CART_KEY = 'ln_cart'
 const COUPON_KEY = 'ln_coupon'
-const RAKHI_GIFT_KEY = 'ln_rakhi_gift'
 
 export function CartProvider({ children }) {
   const { user } = useAuth()
@@ -30,15 +29,6 @@ export function CartProvider({ children }) {
       return []
     }
   })
-  const [includeRakhiGift, setIncludeRakhiGift] = useState(() => {
-    try {
-      const stored = localStorage.getItem(RAKHI_GIFT_KEY)
-      return stored === null ? true : stored !== 'false'
-    } catch {
-      return true
-    }
-  })
-
   // Persist on change
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(items))
@@ -51,10 +41,6 @@ export function CartProvider({ children }) {
       localStorage.removeItem(COUPON_KEY)
     }
   }, [appliedCoupon])
-
-  useEffect(() => {
-    localStorage.setItem(RAKHI_GIFT_KEY, String(includeRakhiGift))
-  }, [includeRakhiGift])
 
   useEffect(() => {
     let cancelled = false
@@ -158,7 +144,6 @@ export function CartProvider({ children }) {
     setItems([])
     setNewCustomerEligible(false)
     setAppliedCoupon(null)
-    setIncludeRakhiGift(true)
   }
 
   const applyCoupon = async (code) => {
@@ -224,8 +209,7 @@ export function CartProvider({ children }) {
       items, addToCart, updateQuantity, removeFromCart, clearCart,
       cartTotal, cartCount, shippingCost, tax, orderTotal,
       discountAmount, welcomeDiscount, couponDiscount, newCustomerEligible,
-      appliedCoupon, applyCoupon, removeCoupon, couponLoading,
-      includeRakhiGift, setIncludeRakhiGift
+      appliedCoupon, applyCoupon, removeCoupon, couponLoading
     }}>
       {children}
     </CartContext.Provider>

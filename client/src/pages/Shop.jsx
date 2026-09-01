@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, X } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
-import { RakhiGiftBadge } from '../components/RakhiGiftOffer'
 
 const SIZES = ['M', 'L', 'XL', 'XXL']
 const SORTS = [
@@ -201,7 +200,6 @@ function ProductCard({ product }) {
           showDots
           showArrows={false}
           imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          overlay={<RakhiGiftBadge />}
         />
         {product.discountedPrice && (
           <span className="absolute top-2 left-2 bg-black text-white text-xs px-2 py-1 font-medium z-10">
