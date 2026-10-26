@@ -95,9 +95,7 @@ function mapRazorpayAddress(addr = {}, fallbackContact = '') {
 }
 
 function shippingMethodsForOrder(order, addresses = []) {
-  // Shipping fee disabled for now — always FREE
-  // const itemsPrice = Number(order?.itemsPrice || 0);
-  // const shippingFeePaise = toPaise(calculateShipping(itemsPrice));
+  const shippingFeePaise = toPaise(Number(order?.shippingPrice) || 0);
 
   return addresses.map((addr) => {
     const zip = String(addr.zipcode || '').trim();
@@ -110,10 +108,12 @@ function shippingMethodsForOrder(order, addresses = []) {
       shipping_methods: [
         {
           id: 'standard',
-          name: 'Standard Delivery (Free)',
-          description: 'Delivered in 4–6 business days across Maharashtra',
+          name: shippingFeePaise ? 'Standard Delivery' : 'Standard Delivery (Free)',
+          description: shippingFeePaise
+            ? 'Flat ₹99 delivery across Maharashtra'
+            : 'Delivered in 4–6 business days across Maharashtra',
           serviceable,
-          shipping_fee: 0,
+          shipping_fee: shippingFeePaise,
           // COD disabled for now — prepaid only
           cod: false,
           cod_fee: 0

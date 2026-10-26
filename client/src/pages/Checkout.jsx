@@ -11,7 +11,7 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 export default function Checkout() {
   const navigate = useNavigate()
   const {
-    items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon,
+    items, cartTotal, orderTotal, shippingCost, welcomeDiscount, couponDiscount, clearCart, appliedCoupon,
     festivalOfferId, festivalSelections, festivalQuote, festivalDiscount, festivalCheckoutReady
   } = useCart()
   const { user } = useAuth()
@@ -128,15 +128,6 @@ export default function Checkout() {
                       <p className="font-medium leading-tight">{item.name}</p>
                       <p className="text-gray-500 text-xs mt-0.5">Size: {item.size} • Qty: {item.quantity}</p>
                       <p className="font-semibold mt-1">₹{item.price * item.quantity}</p>
-                      {festivalQuote.applied && festivalQuote.lines?.find(
-                        (line) => String(line.productId) === String(item.productId) && line.size === item.size
-                      )?.note && (
-                        <p className="text-xs text-green-700 mt-0.5">
-                          {festivalQuote.lines.find(
-                            (line) => String(line.productId) === String(item.productId) && line.size === item.size
-                          ).note}
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -146,15 +137,19 @@ export default function Checkout() {
                   <span className="text-gray-600">Subtotal</span>
                   <span>₹{cartTotal}</span>
                 </div>
-                {festivalDiscount > 0 && festivalQuote.title && (
+                {festivalQuote.applied && festivalQuote.title && (
                   <div className="flex justify-between text-green-700">
                     <span>{festivalQuote.title}</span>
-                    <span>−₹{festivalDiscount}</span>
+                    {festivalDiscount > 0 ? <span>−₹{festivalDiscount}</span> : <span>Applied</span>}
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="text-green-600">FREE</span>
+                  {shippingCost > 0 ? (
+                    <span>₹{shippingCost}</span>
+                  ) : (
+                    <span className="text-green-600">FREE</span>
+                  )}
                 </div>
                 {welcomeDiscount > 0 && (
                   <div className="flex justify-between text-green-700">
@@ -194,9 +189,9 @@ export default function Checkout() {
                   </Link>
                 </span>
               </label>
-              {!festivalCheckoutReady && (
+              {!festivalCheckoutReady && festivalQuote.message && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mt-4">
-                  {festivalQuote.message || 'Go back to your cart and finish choosing shirts for the offer.'}
+                  {festivalQuote.message}
                 </p>
               )}
               <button

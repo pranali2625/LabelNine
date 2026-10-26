@@ -8,11 +8,10 @@ import FestivalOfferPicker from '../components/FestivalOfferPicker'
 
 export default function Cart() {
   const {
-    items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
+    items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount, shippingCost,
     welcomeDiscount, couponDiscount, newCustomerEligible,
     appliedCoupon, applyCoupon, removeCoupon, couponLoading,
-    festivalOfferId, festivalSelections, festivalQuote, festivalDiscount, festivalCheckoutReady,
-    setFestivalIncluded
+    festivalQuote, festivalDiscount, festivalCheckoutReady
   } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -56,18 +55,6 @@ export default function Cart() {
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-4">
           {items.map(item => {
-            const included = festivalSelections.find(
-              (sel) => String(sel.productId) === String(item.productId) && sel.size === item.size
-            )?.quantity || 0
-            const quoteLine = festivalQuote.lines?.find(
-              (line) => String(line.productId) === String(item.productId) && line.size === item.size
-            )
-            const required = festivalQuote.required || 0
-            const selectedCount = festivalQuote.selectedCount || 0
-            const includeMax = Math.min(
-              item.quantity,
-              included + Math.max(0, required - selectedCount)
-            )
             return (
             <div key={`${item.productId}-${item.size}`} className="flex gap-4 border border-gray-200 p-4">
               <div className="w-20 h-28 flex-shrink-0 bg-gray-100 overflow-hidden">
@@ -106,37 +93,8 @@ export default function Cart() {
                   </div>
                   <div className="text-right">
                     <p className="font-bold">₹{item.price * item.quantity}</p>
-                    {festivalQuote.applied && quoteLine?.note && (
-                      <p className="text-xs text-green-700 mt-1">{quoteLine.note}</p>
-                    )}
                   </div>
                 </div>
-                {festivalOfferId && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-600">Include in offer</p>
-                    <div className="flex items-center border border-gray-300">
-                      <button
-                        type="button"
-                        onClick={() => setFestivalIncluded(item.productId, item.size, included - 1)}
-                        disabled={included <= 0}
-                        className="p-2 hover:bg-gray-50 transition-colors disabled:opacity-30"
-                        aria-label="Include one fewer shirt in the offer"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="px-3 text-sm font-medium">{included}</span>
-                      <button
-                        type="button"
-                        onClick={() => setFestivalIncluded(item.productId, item.size, included + 1)}
-                        disabled={included >= includeMax}
-                        className="p-2 hover:bg-gray-50 transition-colors disabled:opacity-30"
-                        aria-label="Include one more shirt in the offer"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )})}
@@ -151,15 +109,19 @@ export default function Cart() {
                 <span className="text-gray-600">Subtotal ({cartCount} items)</span>
                 <span>₹{cartTotal}</span>
               </div>
-              {festivalDiscount > 0 && festivalQuote.title && (
+              {festivalQuote.applied && festivalQuote.title && (
                 <div className="flex justify-between text-green-700">
                   <span>{festivalQuote.title}</span>
-                  <span>−₹{festivalDiscount}</span>
+                  {festivalDiscount > 0 ? <span>−₹{festivalDiscount}</span> : <span>Applied</span>}
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
-                <span className="text-green-600 font-medium">FREE</span>
+                {shippingCost > 0 ? (
+                  <span>₹{shippingCost}</span>
+                ) : (
+                  <span className="text-green-600 font-medium">FREE</span>
+                )}
               </div>
               {welcomeDiscount > 0 && (
                 <div className="flex justify-between text-green-700">
@@ -229,9 +191,9 @@ export default function Cart() {
                 <span>₹{orderTotal}</span>
               </div>
             </div>
-            {!festivalCheckoutReady && (
+            {!festivalCheckoutReady && festivalQuote.message && (
               <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mt-4">
-                {festivalQuote.message || 'Finish choosing shirts for the offer, or remove the offer.'}
+                {festivalQuote.message}
               </p>
             )}
             <button

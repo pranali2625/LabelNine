@@ -109,7 +109,10 @@ export default function OrderDetail() {
                 <span>−₹{order.discountAmount}</span>
               </div>
             )}
-            {/* <div className="flex justify-between text-gray-600"><span>Shipping</span><span>{order.shippingPrice === 0 ? 'FREE' : `₹{order.shippingPrice}`}</span></div> */}
+            <div className="flex justify-between text-gray-600">
+              <span>Shipping</span>
+              <span>{order.shippingPrice > 0 ? `₹${order.shippingPrice}` : 'FREE'}</span>
+            </div>
             {/* GST disabled for now
             <div className="flex justify-between text-gray-600"><span>GST</span><span>₹{order.taxPrice}</span></div>
             */}

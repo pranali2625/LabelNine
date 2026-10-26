@@ -12,8 +12,21 @@
   will-change: transform;
 }
 
+@keyframes diya-flicker {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: 1; }
+  50% { transform: scaleY(0.9) translateY(1px); opacity: 0.82; }
+}
+
+.diya-flame {
+  transform-origin: center bottom;
+  animation: diya-flicker 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
+    animation: none;
+  }
+  .diya-flame {
     animation: none;
   }
 }

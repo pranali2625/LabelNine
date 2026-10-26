@@ -17,10 +17,6 @@ const CAMPAIGN_SLIDES = [
     alt: 'Label Nine — Classic by Choice campaign',
   },
   {
-    src: '/images/home/campaign-2.png',
-    alt: 'Label Nine — Classy Collection campaign',
-  },
-  {
     src: '/images/home/campaign-3.png',
     alt: 'Label Nine — Effortless by Nature campaign',
   },
@@ -122,6 +118,15 @@ export default function Home() {
         </div>
       </section>
 
+      {isFestivalOfferActive() && (
+        <CampaignSlider
+          slides={DIWALI_SLIDES}
+          label="Diwali offers"
+          tone="light"
+          className="mt-4 md:mt-5"
+        />
+      )}
+
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <div className="flex items-center justify-between mb-10">
@@ -209,8 +214,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Campaign slider — Diwali banners during the offer window */}
-      <CampaignSlider />
+      {/* Campaign slider — before collection CTA; full image, no crop */}
+      <CampaignSlider slides={CAMPAIGN_SLIDES} label="Label Nine campaign" />
+
       <DiwaliOffers />
 
       {/* Shop CTA */}
@@ -231,9 +237,111 @@ export default function Home() {
   )
 }
 
-function CampaignSlider() {
-  const diwali = isFestivalOfferActive()
-  const slides = diwali ? DIWALI_SLIDES : CAMPAIGN_SLIDES
+function DiyaMark({ className = 'w-10 h-10' }) {
+  return (
+    <svg viewBox="0 0 64 72" className={className} aria-hidden="true">
+      <path className="diya-flame" d="M32 6c6 8 8 14 8 20 0 6-4 10-8 10s-8-4-8-10c0-6 2-12 8-20z" fill="#ffb703" />
+      <path className="diya-flame" d="M32 14c3 5 4 8 4 12 0 3-2 5-4 5s-4-2-4-5c0-4 1-7 4-12z" fill="#fff4d6" />
+      <path d="M10 46c2-8 10-12 22-12s20 4 22 12c1 6-6 10-22 10S9 52 10 46z" fill="#c4892a" />
+      <path d="M16 46c1-4 6-7 16-7s15 3 16 7c1 3-4 5-16 5s-17-2-16-5z" fill="#e8b45a" />
+      <path d="M8 50c8 8 40 8 48 0" fill="none" stroke="#8d5a16" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function Firework({ className = '' }) {
+  const rays = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i * 22.5 * Math.PI) / 180
+    const inner = i % 2 === 0 ? 14 : 22
+    const outer = i % 2 === 0 ? 52 : 36
+    return {
+      x1: 60 + Math.cos(angle) * inner,
+      y1: 60 + Math.sin(angle) * inner,
+      x2: 60 + Math.cos(angle) * outer,
+      y2: 60 + Math.sin(angle) * outer
+    }
+  })
+
+  return (
+    <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
+      {rays.map((ray, i) => (
+        <line
+          key={i}
+          x1={ray.x1}
+          y1={ray.y1}
+          x2={ray.x2}
+          y2={ray.y2}
+          stroke="currentColor"
+          strokeWidth={i % 2 === 0 ? 1.6 : 1}
+          strokeLinecap="round"
+        />
+      ))}
+      <circle cx="60" cy="60" r="3.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+function DiwaliOffers() {
+  if (!isFestivalOfferActive()) return null
+
+  const cardTones = [
+    'bg-gradient-to-br from-[#1f6b4a] to-[#12382c] text-[#fff4d2] border-[#e8c56b]',
+    'bg-gradient-to-br from-[#f0b429] to-[#d97706] text-[#3b2208] border-[#fff1c2]'
+  ]
+
+  return (
+    <section className="relative overflow-hidden mt-4 md:mt-5 bg-[#fbf3e4] text-[#1f3d32]">
+      <div className="pointer-events-none absolute -top-16 left-1/2 h-40 w-[28rem] -translate-x-1/2 rounded-full bg-[#f6c453]/40 blur-3xl" />
+      <div className="pointer-events-none absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-[#f08a2c]/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-8 top-8 h-28 w-28 rounded-full bg-[#e25b2a]/20 blur-3xl" />
+
+      <Firework className="pointer-events-none absolute left-[3%] top-4 w-16 h-16 text-[#e8b045] sm:w-20 sm:h-20" />
+      <Firework className="pointer-events-none absolute left-[7%] bottom-4 w-12 h-12 text-[#f08a2c]/80" />
+      <Firework className="pointer-events-none absolute right-[3%] top-5 w-20 h-20 text-[#f0b429] sm:w-24 sm:h-24" />
+      <Firework className="pointer-events-none absolute right-[7%] bottom-3 w-12 h-12 text-[#e8b045]" />
+
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-8 md:py-10 text-center">
+        <div className="flex items-end justify-center gap-5 mb-1">
+          <DiyaMark className="w-6 h-7 opacity-80" />
+          <DiyaMark className="w-9 h-10" />
+          <DiyaMark className="w-6 h-7 opacity-80" />
+        </div>
+        <p className="text-sm md:text-base font-semibold tracking-[0.5em] text-[#a16207]">DIWALI</p>
+        <h2 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight text-[#16352b]">Festival Offers</h2>
+        <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-[#c4892a]">
+          <span className="h-px w-8 bg-[#e4c98a]" />
+          <span className="text-[10px]">✦</span>
+          <span className="h-px w-8 bg-[#e4c98a]" />
+        </div>
+        <p className="mt-2 text-[11px] sm:text-xs uppercase tracking-[0.28em] text-[#8a5a2b]">
+          Valid {FESTIVAL_WINDOW_LABEL}
+        </p>
+
+        <div className="mt-6 grid sm:grid-cols-2 gap-3 md:gap-4">
+          {FESTIVAL_OFFER_LIST.map((offer, index) => (
+            <div
+              key={offer.id}
+              className={`flex items-center justify-center min-h-24 md:min-h-28 border px-5 py-5 shadow-[0_12px_28px_rgba(166,98,7,0.14)] ${cardTones[index]}`}
+            >
+              <p className="text-xl md:text-2xl font-semibold tracking-tight leading-snug text-center">
+                {offer.title}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <Link
+          to="/shop"
+          className="mt-6 inline-flex items-center gap-2 bg-[#16352b] text-[#fbf3e4] px-6 py-3 text-sm font-semibold tracking-wide hover:bg-[#0f2820] transition-colors"
+        >
+          SHOP THE OFFER <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function CampaignSlider({ slides, label, tone = 'dark', className = '' }) {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const touchStart = useRef(null)
@@ -265,8 +373,8 @@ function CampaignSlider() {
 
   return (
     <section
-      aria-label={diwali ? 'Diwali offers' : 'Label Nine campaign'}
-      className={`relative ${diwali ? 'bg-[#f6efe4]' : 'bg-[#111]'}`}
+      aria-label={label}
+      className={`relative ${tone === 'light' ? 'bg-[#f6efe4]' : 'bg-[#111]'} ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={onTouchStart}
@@ -333,34 +441,6 @@ function CampaignSlider() {
           />
         ))}
       </div>
-    </section>
-  )
-}
-
-function DiwaliOffers() {
-  if (!isFestivalOfferActive()) return null
-
-  return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-      <p className="text-xs tracking-[0.3em] text-gray-500 mb-1">DIWALI</p>
-      <h2 className="text-3xl font-bold tracking-tight mb-2">FESTIVAL OFFERS</h2>
-      <p className="text-gray-600 max-w-2xl mb-8">
-        Valid {FESTIVAL_WINDOW_LABEL}. Add shirts to your cart, choose one offer, and pick the shirts it applies to. The discount is calculated at billing.
-      </p>
-      <div className="grid md:grid-cols-2 gap-4">
-        {FESTIVAL_OFFER_LIST.map((offer) => (
-          <div key={offer.id} className="border border-amber-300 bg-amber-50 p-6">
-            <h3 className="text-xl font-bold mb-2">{offer.title}</h3>
-            <p className="text-sm text-gray-700 leading-relaxed">{offer.detail}</p>
-          </div>
-        ))}
-      </div>
-      <Link
-        to="/shop"
-        className="inline-flex items-center gap-2 bg-black text-white px-8 py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-8"
-      >
-        SHOP THE OFFER <ArrowRight className="w-4 h-4" />
-      </Link>
     </section>
   )
 }

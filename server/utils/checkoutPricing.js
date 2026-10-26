@@ -61,7 +61,7 @@ async function applyFestivalPricing(items, festivalOffer) {
 }
 
 async function priceCheckout(user, orderItems, { couponCode, festivalOffer } = {}) {
-  const { roundMoney } = await loadOffers();
+  const { roundMoney, FESTIVAL_SHIPPING } = await loadOffers();
   const lines = mapLines(orderItems);
   const itemsPrice = roundMoney(lines.reduce((sum, item) => sum + item.price * item.quantity, 0));
   const festival = await applyFestivalPricing(lines, festivalOffer);
@@ -75,17 +75,17 @@ async function priceCheckout(user, orderItems, { couponCode, festivalOffer } = {
   const payable = resolved.discount.discountedItemsPrice;
   const discountAmount = roundMoney(itemsPrice - payable);
   const codes = [];
-  if (festival.quote && festival.quote.discountAmount > 0) codes.push(festival.quote.code);
+  if (festival.quote?.applied && festival.quote.code) codes.push(festival.quote.code);
   if (resolved.discount.discountCode) codes.push(resolved.discount.discountCode);
 
   return {
     ok: true,
     itemsPrice,
     discountAmount,
-    discountCode: discountAmount > 0 ? codes.join('+') : null,
-    shippingPrice: 0,
+    discountCode: codes.length ? codes.join('+') : null,
+    shippingPrice: festival.quote?.applied ? FESTIVAL_SHIPPING : 0,
     taxPrice: 0,
-    totalAmount: payable,
+    totalAmount: roundMoney(payable + (festival.quote?.applied ? FESTIVAL_SHIPPING : 0)),
     festival: festival.quote,
     discount: resolved.discount,
     source: resolved.source,

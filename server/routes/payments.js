@@ -66,17 +66,19 @@ function applyRazorpayCustomerDetails(order, rzpOrder) {
   );
   order.shippingAddress = shipping;
 
-  // Shipping fee disabled for now — always FREE (ignore Razorpay shipping_fee)
-  // const shippingFee = fromPaise(rzpOrder.shipping_fee);
-  const shippingFee = 0;
-  const codFee = fromPaise(rzpOrder.cod_fee);
-  order.shippingPrice = shippingFee + codFee;
+  const reportedShipping = fromPaise(rzpOrder.shipping_fee) + fromPaise(rzpOrder.cod_fee);
+  const merchandise = Math.max(0, Number(order.itemsPrice) - Number(order.discountAmount || 0));
+  const paid = rzpOrder.amount != null ? fromPaise(rzpOrder.amount) : null;
+  const inferredShipping = paid != null ? Math.max(0, Math.round((paid - merchandise) * 100) / 100) : 0;
+  const festivalOrder = /DIWALI-(B2G2|199)/.test(String(order.discountCode || ''));
+  order.shippingPrice = reportedShipping > 0
+    ? reportedShipping
+    : (festivalOrder && inferredShipping >= 99 ? 99 : 0);
   order.taxPrice = fromPaise(rzpOrder.tax_details?.total_tax) || 0;
-  // Prefer Razorpay final amount (includes shipping / COD fee / promotions)
-  if (rzpOrder.amount != null) {
-    order.totalAmount = fromPaise(rzpOrder.amount);
+  if (paid != null) {
+    order.totalAmount = paid;
   } else {
-    order.totalAmount = Number(order.itemsPrice) + Number(order.shippingPrice) + Number(order.taxPrice);
+    order.totalAmount = merchandise + Number(order.shippingPrice) + Number(order.taxPrice);
   }
 }
 
@@ -393,11 +395,8 @@ router.post('/magic/create', protect, async (req, res) => {
     if (!priced.ok) {
       return res.status(400).json({ success: false, message: priced.message });
     }
-    const { itemsPrice, discountAmount, discountCode, totalAmount } = priced;
+    const { itemsPrice, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } = priced;
     const discount = priced.discount;
-    // Shipping is applied inside Magic Checkout via shipping-info callback
-    const shippingPrice = 0;
-    const taxPrice = 0;
     const orderId = generateOrderId();
     const phone = normalizePhone(contact?.phone || req.user.phone) || '0000000000';
 

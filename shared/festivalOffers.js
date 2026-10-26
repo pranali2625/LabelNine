@@ -9,6 +9,7 @@
  */
 
 const SECOND_SHIRT_PRICE = 199;
+const FESTIVAL_SHIPPING = 99;
 const FESTIVAL_START = '2026-10-26';
 const FESTIVAL_END = '2026-11-10';
 const FESTIVAL_WINDOW_LABEL = '26 Oct 2026 – 10 Nov 2026';
@@ -19,16 +20,14 @@ const FESTIVAL_OFFER_LIST = [
     code: 'DIWALI-B2G2',
     title: 'Buy 2 Get 2 Free',
     required: 4,
-    detail:
-      'Choose 4 shirts. At billing we charge only the 2 higher-priced shirts. The other 2 are free.'
+    detail: 'Buy 2 Get 2 Free'
   },
   {
     id: 'b1g199',
     code: 'DIWALI-199',
     title: 'Buy 1, Get 2nd at ₹199',
     required: 2,
-    detail:
-      'Choose 2 shirts. We bill the higher-priced shirt in full and charge ₹199 for the second.'
+    detail: 'Buy 1, Get 2nd at ₹199'
   }
 ];
 
@@ -257,7 +256,7 @@ function quoteFestivalOffer(rawItems, offerId, selections, now = new Date()) {
     else if (freeCount > 0) note = freeCount === 1 ? '1 shirt free' : `${freeCount} shirts free`;
     else if (offerCount > 0 && paidIncluded > 0) note = `1 at full price, 1 at ₹${SECOND_SHIRT_PRICE}`;
     else if (offerCount > 0) note = `Offer price ₹${SECOND_SHIRT_PRICE}`;
-    else if (included > 0) note = 'Billed in full (higher price)';
+    else if (included > 0) note = 'Included in offer';
 
     return {
       productId: item.productId,
@@ -275,11 +274,11 @@ function quoteFestivalOffer(rawItems, offerId, selections, now = new Date()) {
   const payable = roundMoney(originalPayable - discountAmount);
   let message;
   if (offer.id === 'b2g2') {
-    message = `Billing the 2 highest priced of your 4 chosen shirts. You save ₹${discountAmount}.`;
+    message = discountAmount > 0 ? `Offer applied. You save ₹${discountAmount}.` : 'Offer applied.';
   } else if (discountAmount > 0) {
-    message = `The higher priced shirt is billed in full. The second shirt is ₹${SECOND_SHIRT_PRICE}. You save ₹${discountAmount}.`;
+    message = `Offer applied. You save ₹${discountAmount}.`;
   } else {
-    message = `The lower priced shirt is already ₹${SECOND_SHIRT_PRICE} or less, so it stays at its regular price.`;
+    message = 'Offer applied.';
   }
 
   return {
@@ -297,6 +296,7 @@ function quoteFestivalOffer(rawItems, offerId, selections, now = new Date()) {
 
 export {
   SECOND_SHIRT_PRICE,
+  FESTIVAL_SHIPPING,
   FESTIVAL_START,
   FESTIVAL_END,
   FESTIVAL_WINDOW_LABEL,

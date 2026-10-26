@@ -79,7 +79,7 @@ export default function Shop() {
           <p className="text-gray-500 text-sm mt-1">{total} {total === 1 ? 'product' : 'products'}</p>
           {isFestivalOfferActive() && (
             <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2 mt-3">
-              Diwali offers, valid {FESTIVAL_WINDOW_LABEL}: Buy 2 Get 2 Free, or a second shirt at ₹199. Choose the shirts in your cart.
+              Diwali offers, valid {FESTIVAL_WINDOW_LABEL}: Buy 2 Get 2 Free, or a second shirt at ₹199.
             </p>
           )}
         </div>
