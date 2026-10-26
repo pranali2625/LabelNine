@@ -98,12 +98,21 @@ function publicImageUrl(filename, baseUrl) {
 /** Rewrite stored DB URLs to a working /uploads/products/ URL when the file exists on disk. */
 function resolvePublicImageUrl(storedUrl, baseUrl) {
   if (!storedUrl) return storedUrl;
-  if (!isResolvableLocalImageUrl(storedUrl)) return storedUrl;
+
+  const filename = extractImageFilename(storedUrl);
+  if (!filename || !IMAGE_EXT.test(filename)) return storedUrl;
 
   const filePath = findProductImageFile(storedUrl);
-  if (!filePath) return storedUrl;
+  if (filePath) return publicImageUrl(path.basename(filePath), baseUrl);
 
-  return publicImageUrl(path.basename(filePath), baseUrl);
+  // Local embedded DB has no image files — still use /uploads/products so the
+  // API can proxy the live photo instead of leaving a labelnine.in CORP-blocked URL.
+  const isLocalDev = process.env.EMBEDDED_MYSQL === '1' || env('NODE_ENV') !== 'production';
+  if (isLocalDev && (storedUrl.includes('/uploads/products/') || isResolvableLocalImageUrl(storedUrl))) {
+    return publicImageUrl(filename, baseUrl);
+  }
+
+  return storedUrl;
 }
 
 function saveProductImage(buffer, originalName) {

@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Truck, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
+import {
+  FESTIVAL_OFFER_LIST,
+  FESTIVAL_WINDOW_LABEL,
+  isFestivalOfferActive
+} from '../constants/festivalOffers'
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1602810316693-3667c854239a?w=1400'
 
@@ -18,6 +23,21 @@ const CAMPAIGN_SLIDES = [
   {
     src: '/images/home/campaign-3.png',
     alt: 'Label Nine — Effortless by Nature campaign',
+  },
+]
+
+const DIWALI_SLIDES = [
+  {
+    src: '/images/home/diwali-greeting.jpg',
+    alt: 'Happy Diwali from Label Nine',
+  },
+  {
+    src: '/images/home/diwali-buy-2-get-2.png',
+    alt: 'Diwali offer: Buy 2 Get 2 Free on Label Nine shirts',
+  },
+  {
+    src: '/images/home/diwali-second-at-199.jpg',
+    alt: 'Diwali offer: buy one shirt and get the second at ₹199',
   },
 ]
 
@@ -189,8 +209,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Campaign slider — before collection CTA; full image, no crop */}
+      {/* Campaign slider — Diwali banners during the offer window */}
       <CampaignSlider />
+      <DiwaliOffers />
 
       {/* Shop CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center">
@@ -211,9 +232,12 @@ export default function Home() {
 }
 
 function CampaignSlider() {
+  const diwali = isFestivalOfferActive()
+  const slides = diwali ? DIWALI_SLIDES : CAMPAIGN_SLIDES
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
-  const total = CAMPAIGN_SLIDES.length
+  const touchStart = useRef(null)
+  const total = slides.length
 
   useEffect(() => {
     if (paused || total <= 1) return
@@ -225,16 +249,32 @@ function CampaignSlider() {
 
   const go = (next) => setIndex((next + total) % total)
 
+  const onTouchStart = (event) => {
+    touchStart.current = event.touches[0].clientX
+  }
+
+  const onTouchEnd = (event) => {
+    if (touchStart.current == null) return
+    const dx = event.changedTouches[0].clientX - touchStart.current
+    if (Math.abs(dx) >= 50) {
+      setPaused(true)
+      go(index + (dx < 0 ? 1 : -1))
+    }
+    touchStart.current = null
+  }
+
   return (
     <section
-      aria-label="Label Nine campaign"
-      className="relative bg-[#111]"
+      aria-label={diwali ? 'Diwali offers' : 'Label Nine campaign'}
+      className={`relative ${diwali ? 'bg-[#f6efe4]' : 'bg-[#111]'}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {/* Natural image height — no aspect crop */}
       <div className="relative w-full">
-        {CAMPAIGN_SLIDES.map((slide, i) => (
+        {slides.map((slide, i) => (
           <div
             key={slide.src}
             aria-hidden={i !== index}
@@ -279,8 +319,8 @@ function CampaignSlider() {
         <ChevronRight className="w-5 h-5" />
       </button>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[2] flex gap-2">
-        {CAMPAIGN_SLIDES.map((slide, i) => (
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[2] flex gap-2 bg-black/45 px-3 py-2">
+        {slides.map((slide, i) => (
           <button
             key={slide.src}
             type="button"
@@ -293,6 +333,34 @@ function CampaignSlider() {
           />
         ))}
       </div>
+    </section>
+  )
+}
+
+function DiwaliOffers() {
+  if (!isFestivalOfferActive()) return null
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+      <p className="text-xs tracking-[0.3em] text-gray-500 mb-1">DIWALI</p>
+      <h2 className="text-3xl font-bold tracking-tight mb-2">FESTIVAL OFFERS</h2>
+      <p className="text-gray-600 max-w-2xl mb-8">
+        Valid {FESTIVAL_WINDOW_LABEL}. Add shirts to your cart, choose one offer, and pick the shirts it applies to. The discount is calculated at billing.
+      </p>
+      <div className="grid md:grid-cols-2 gap-4">
+        {FESTIVAL_OFFER_LIST.map((offer) => (
+          <div key={offer.id} className="border border-amber-300 bg-amber-50 p-6">
+            <h3 className="text-xl font-bold mb-2">{offer.title}</h3>
+            <p className="text-sm text-gray-700 leading-relaxed">{offer.detail}</p>
+          </div>
+        ))}
+      </div>
+      <Link
+        to="/shop"
+        className="inline-flex items-center gap-2 bg-black text-white px-8 py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-8"
+      >
+        SHOP THE OFFER <ArrowRight className="w-4 h-4" />
+      </Link>
     </section>
   )
 }

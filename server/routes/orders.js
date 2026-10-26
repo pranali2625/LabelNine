@@ -4,8 +4,8 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { pool } = require('../config/db');
 const { protect } = require('../middleware/auth');
-const { generateOrderId, calculatePrices } = require('../utils/helpers');
-const { resolveOrderDiscount } = require('../utils/inviteCoupon');
+const { generateOrderId } = require('../utils/helpers');
+const { priceCheckout } = require('../utils/checkoutPricing');
 const { restoreOrderStock, deductOrderStock } = require('../utils/orderStock');
 const { notifyOrderConfirmed, notifyOrderCancelled } = require('../utils/orderNotifications');
 const { validateShippingAddress } = require('../../shared/maharashtra');
@@ -24,7 +24,7 @@ const findUserOrder = (id, userId) =>
 router.post('/', protect, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { items, shippingAddress, paymentMethod = 'RAZORPAY', couponCode } = req.body;
+    const { items, shippingAddress, paymentMethod = 'RAZORPAY', couponCode, festivalOffer } = req.body;
 
     if (paymentMethod === 'COD') {
       return res.status(400).json({
@@ -76,16 +76,11 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode, orderItems);
-    if (!resolved.ok) {
-      return res.status(400).json({ success: false, message: resolved.message });
+    const priced = await priceCheckout(req.user, orderItems, { couponCode, festivalOffer });
+    if (!priced.ok) {
+      return res.status(400).json({ success: false, message: priced.message });
     }
-    const { itemsPrice: _ip, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } =
-      calculatePrices(orderItems, {
-        discountAmount: resolved.discount.discountAmount,
-        discountCode: resolved.discount.discountAmount > 0 ? resolved.discount.discountCode : null
-      });
+    const { itemsPrice, discountAmount, discountCode, shippingPrice, taxPrice, totalAmount } = priced;
     const isCOD = paymentMethod === 'COD';
 
     await conn.beginTransaction();

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, X } from 'lucide-react'
 import api from '../services/api'
 import ImageSlideshow from '../components/ImageSlideshow'
+import { FESTIVAL_WINDOW_LABEL, isFestivalOfferActive } from '../constants/festivalOffers'
 
 const SIZES = ['M', 'L', 'XL', 'XXL']
 const SORTS = [
@@ -76,6 +77,11 @@ export default function Shop() {
             {variety || 'All Shirts'}
           </h1>
           <p className="text-gray-500 text-sm mt-1">{total} {total === 1 ? 'product' : 'products'}</p>
+          {isFestivalOfferActive() && (
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2 mt-3">
+              Diwali offers, valid {FESTIVAL_WINDOW_LABEL}: Buy 2 Get 2 Free, or a second shirt at ₹199. Choose the shirts in your cart.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <select

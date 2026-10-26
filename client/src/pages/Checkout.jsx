@@ -10,7 +10,10 @@ import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon } = useCart()
+  const {
+    items, cartTotal, orderTotal, welcomeDiscount, couponDiscount, clearCart, appliedCoupon,
+    festivalOfferId, festivalSelections, festivalQuote, festivalDiscount, festivalCheckoutReady
+  } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -44,6 +47,11 @@ export default function Checkout() {
       return
     }
 
+    if (!festivalCheckoutReady) {
+      toast.error(festivalQuote.message || 'Finish choosing shirts for the offer in your cart.')
+      return
+    }
+
     if (!acceptedTerms) {
       toast.error('Please accept the terms and privacy policy before checkout.')
       return
@@ -57,6 +65,9 @@ export default function Checkout() {
         contact,
         paymentMethod: 'RAZORPAY',
         couponCode: appliedCoupon?.code || null,
+        festivalOffer: festivalQuote.applied
+          ? { id: festivalOfferId, selections: festivalSelections }
+          : null,
         onSuccess: (confirmed) => {
           clearCart()
           navigate(`/order-success/${confirmed.orderId}`)
@@ -117,6 +128,15 @@ export default function Checkout() {
                       <p className="font-medium leading-tight">{item.name}</p>
                       <p className="text-gray-500 text-xs mt-0.5">Size: {item.size} • Qty: {item.quantity}</p>
                       <p className="font-semibold mt-1">₹{item.price * item.quantity}</p>
+                      {festivalQuote.applied && festivalQuote.lines?.find(
+                        (line) => String(line.productId) === String(item.productId) && line.size === item.size
+                      )?.note && (
+                        <p className="text-xs text-green-700 mt-0.5">
+                          {festivalQuote.lines.find(
+                            (line) => String(line.productId) === String(item.productId) && line.size === item.size
+                          ).note}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -126,6 +146,12 @@ export default function Checkout() {
                   <span className="text-gray-600">Subtotal</span>
                   <span>₹{cartTotal}</span>
                 </div>
+                {festivalDiscount > 0 && festivalQuote.title && (
+                  <div className="flex justify-between text-green-700">
+                    <span>{festivalQuote.title}</span>
+                    <span>−₹{festivalDiscount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="text-green-600">FREE</span>
@@ -168,9 +194,14 @@ export default function Checkout() {
                   </Link>
                 </span>
               </label>
+              {!festivalCheckoutReady && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mt-4">
+                  {festivalQuote.message || 'Go back to your cart and finish choosing shirts for the offer.'}
+                </p>
+              )}
               <button
                 type="submit"
-                disabled={loading || !acceptedTerms}
+                disabled={loading || !acceptedTerms || !festivalCheckoutReady}
                 className="w-full bg-black text-white py-4 font-semibold tracking-wide mt-6 hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? 'Please wait...' : `PAY NOW • ₹${orderTotal}`}

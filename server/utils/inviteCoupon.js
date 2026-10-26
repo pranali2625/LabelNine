@@ -268,10 +268,11 @@ async function markInviteCouponUsed(allowlistId, orderId) {
 
 async function markInviteCouponUsedForUser(user, code, orderId) {
   const { NEW_CUSTOMER_DISCOUNT_CODE } = require('./newCustomerDiscount');
+  const { FESTIVAL_CODES } = await import('../../shared/festivalOffers.js');
   const parts = String(code || '')
     .split('+')
     .map((c) => normalizeCouponCode(c))
-    .filter((c) => c && c !== NEW_CUSTOMER_DISCOUNT_CODE);
+    .filter((c) => c && c !== NEW_CUSTOMER_DISCOUNT_CODE && !FESTIVAL_CODES.has(c));
   const normalized = parts[0];
   if (!normalized || !user) return;
 

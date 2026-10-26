@@ -14,13 +14,22 @@ const {
   getProductImagesDir,
   findProductImageFile
 } = require('./utils/productImages');
+const { isSameShopHost } = require('./utils/formatImageUrls');
 
 const app = express();
 
 // Hostinger/nginx sit in front of Node; required for express-rate-limit client IP detection
 app.set('trust proxy', 1);
 
-app.use(helmet());
+app.use(helmet({
+  // Allow the shop (and local Vite) to display product photos from this API
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      'img-src': ["'self'", 'data:', 'blob:', 'https:']
+    }
+  }
+}));
 app.use(morgan('dev'));
 
 const limiter = rateLimit({
@@ -66,7 +75,8 @@ function isOriginAllowed(origin) {
 
     for (const allowed of allowedOrigins) {
       try {
-        if (new URL(allowed).hostname === hostname) return true;
+        const allowedHost = new URL(allowed).hostname;
+        if (allowedHost === hostname || isSameShopHost(hostname, allowedHost)) return true;
       } catch {
         // ignore invalid CLIENT_URL values
       }
@@ -143,6 +153,30 @@ const STATIC_EXT = /\.(png|jpe?g|webp|gif|svg|ico|css|js|mjs|map|woff2?|ttf|eot)
 console.log('Product images folder:', productImagesDir);
 
 app.use('/uploads/products', express.static(productImagesDir, { maxAge: '7d', fallthrough: true }));
+
+// Local/dev: files are not on disk — fetch the live product photo so collection cards render
+app.get('/uploads/products/:filename', async (req, res) => {
+  const filename = path.basename(req.params.filename || '');
+  if (!/\.(png|jpe?g|webp|gif)$/i.test(filename)) {
+    return res.status(404).type('text/plain').send('Not found');
+  }
+
+  const local = findProductImageFile(filename);
+  if (local) return res.sendFile(local);
+
+  try {
+    const remote = `https://labelnine.in/uploads/products/${encodeURIComponent(filename)}`;
+    const upstream = await fetch(remote);
+    if (!upstream.ok) {
+      return res.status(404).type('text/plain').send('Not found');
+    }
+    res.set('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(await upstream.arrayBuffer()));
+  } catch {
+    res.status(404).type('text/plain').send('Not found');
+  }
+});
 
 // Legacy URLs like https://labelnine.in/mens-shirt-ice-blue.png
 app.get(/^\/[^/]+\.(png|jpe?g|webp|gif)$/i, (req, res, next) => {

@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 
-const PLACEHOLDER = 'https://placehold.co/600x800/e5e5e5/999?text=LABEL+NINE'
+const PLACEHOLDER =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect fill="#e5e5e5" width="100%" height="100%"/></svg>'
+  )
 const SWIPE_THRESHOLD = 50
 
 export default function ImageSlideshow({

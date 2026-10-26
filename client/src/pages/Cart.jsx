@@ -4,12 +4,15 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { NEW_CUSTOMER_DISCOUNT_PERCENT } from '../constants/pricing'
+import FestivalOfferPicker from '../components/FestivalOfferPicker'
 
 export default function Cart() {
   const {
     items, updateQuantity, removeFromCart, cartTotal, orderTotal, cartCount,
     welcomeDiscount, couponDiscount, newCustomerEligible,
-    appliedCoupon, applyCoupon, removeCoupon, couponLoading
+    appliedCoupon, applyCoupon, removeCoupon, couponLoading,
+    festivalOfferId, festivalSelections, festivalQuote, festivalDiscount, festivalCheckoutReady,
+    setFestivalIncluded
   } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -29,6 +32,7 @@ export default function Cart() {
   }
 
   const handleCheckout = () => {
+    if (!festivalCheckoutReady) return
     if (!user) {
       navigate('/login?redirect=checkout')
     } else {
@@ -46,10 +50,25 @@ export default function Cart() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="text-2xl font-bold mb-8">Shopping Cart ({cartCount} {cartCount === 1 ? 'item' : 'items'})</h1>
 
+      <FestivalOfferPicker />
+
       <div className="grid lg:grid-cols-3 gap-10">
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map(item => (
+          {items.map(item => {
+            const included = festivalSelections.find(
+              (sel) => String(sel.productId) === String(item.productId) && sel.size === item.size
+            )?.quantity || 0
+            const quoteLine = festivalQuote.lines?.find(
+              (line) => String(line.productId) === String(item.productId) && line.size === item.size
+            )
+            const required = festivalQuote.required || 0
+            const selectedCount = festivalQuote.selectedCount || 0
+            const includeMax = Math.min(
+              item.quantity,
+              included + Math.max(0, required - selectedCount)
+            )
+            return (
             <div key={`${item.productId}-${item.size}`} className="flex gap-4 border border-gray-200 p-4">
               <div className="w-20 h-28 flex-shrink-0 bg-gray-100 overflow-hidden">
                 <img src={item.image || 'https://placehold.co/80x112/e5e5e5/999'} alt={item.name} className="w-full h-full object-cover" />
@@ -85,11 +104,42 @@ export default function Cart() {
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
-                  <p className="font-bold">₹{item.price * item.quantity}</p>
+                  <div className="text-right">
+                    <p className="font-bold">₹{item.price * item.quantity}</p>
+                    {festivalQuote.applied && quoteLine?.note && (
+                      <p className="text-xs text-green-700 mt-1">{quoteLine.note}</p>
+                    )}
+                  </div>
                 </div>
+                {festivalOfferId && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-600">Include in offer</p>
+                    <div className="flex items-center border border-gray-300">
+                      <button
+                        type="button"
+                        onClick={() => setFestivalIncluded(item.productId, item.size, included - 1)}
+                        disabled={included <= 0}
+                        className="p-2 hover:bg-gray-50 transition-colors disabled:opacity-30"
+                        aria-label="Include one fewer shirt in the offer"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="px-3 text-sm font-medium">{included}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFestivalIncluded(item.productId, item.size, included + 1)}
+                        disabled={included >= includeMax}
+                        className="p-2 hover:bg-gray-50 transition-colors disabled:opacity-30"
+                        aria-label="Include one more shirt in the offer"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Order summary */}
@@ -101,6 +151,12 @@ export default function Cart() {
                 <span className="text-gray-600">Subtotal ({cartCount} items)</span>
                 <span>₹{cartTotal}</span>
               </div>
+              {festivalDiscount > 0 && festivalQuote.title && (
+                <div className="flex justify-between text-green-700">
+                  <span>{festivalQuote.title}</span>
+                  <span>−₹{festivalDiscount}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
                 <span className="text-green-600 font-medium">FREE</span>
@@ -173,9 +229,15 @@ export default function Cart() {
                 <span>₹{orderTotal}</span>
               </div>
             </div>
+            {!festivalCheckoutReady && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mt-4">
+                {festivalQuote.message || 'Finish choosing shirts for the offer, or remove the offer.'}
+              </p>
+            )}
             <button
               onClick={handleCheckout}
-              className="w-full bg-black text-white py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-6 flex items-center justify-center gap-2"
+              disabled={!festivalCheckoutReady}
+              className="w-full bg-black text-white py-4 font-semibold tracking-wide hover:bg-gray-800 transition-colors mt-6 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               PROCEED TO CHECKOUT <ArrowRight className="w-4 h-4" />
             </button>

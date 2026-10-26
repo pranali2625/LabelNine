@@ -24,9 +24,9 @@ const {
 const {
   resolveInviteCoupon,
   calculateInviteCouponDiscount,
-  resolveOrderDiscount,
   markInviteCouponUsedForUser
 } = require('../utils/inviteCoupon');
+const { applyFestivalPricing, priceCheckout } = require('../utils/checkoutPricing');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -265,6 +265,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: resolved.message });
     }
 
+    const { festivalOffer } = req.body || {};
     let pricedItems = Array.isArray(items) ? items : [];
     if (pricedItems.length) {
       const lookedUp = [];
@@ -274,6 +275,7 @@ router.post('/validate-coupon', protect, async (req, res) => {
         if (!product || !product.isActive) continue;
         lookedUp.push({
           productId: product._id,
+          size: item.size,
           quantity: Number(item.quantity) || 1,
           price: product.discountedPrice || product.price
         });
@@ -281,10 +283,19 @@ router.post('/validate-coupon', protect, async (req, res) => {
       pricedItems = lookedUp;
     }
 
-    const subtotal =
+    let subtotal =
       pricedItems.length > 0
         ? pricedItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
         : Number(itemsPrice) || 0;
+
+    if (festivalOffer?.id) {
+      const festival = await applyFestivalPricing(pricedItems, festivalOffer);
+      if (!festival.ok) {
+        return res.status(400).json({ success: false, message: festival.message });
+      }
+      pricedItems = festival.items;
+      subtotal = festival.subtotal;
+    }
 
     const discount = calculateInviteCouponDiscount(subtotal, resolved.coupon, pricedItems);
     const productScoped =
@@ -347,7 +358,7 @@ router.post('/magic/create', protect, async (req, res) => {
       return res.status(503).json({ success: false, message: configError });
     }
 
-    const { items, contact, paymentMethod = 'RAZORPAY', couponCode } = req.body;
+    const { items, contact, paymentMethod = 'RAZORPAY', couponCode, festivalOffer } = req.body;
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in cart' });
     }
@@ -378,16 +389,15 @@ router.post('/magic/create', protect, async (req, res) => {
       });
     }
 
-    const itemsPrice = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const resolved = await resolveOrderDiscount(req.user, itemsPrice, couponCode, orderItems);
-    if (!resolved.ok) {
-      return res.status(400).json({ success: false, message: resolved.message });
+    const priced = await priceCheckout(req.user, orderItems, { couponCode, festivalOffer });
+    if (!priced.ok) {
+      return res.status(400).json({ success: false, message: priced.message });
     }
-    const discount = resolved.discount;
+    const { itemsPrice, discountAmount, discountCode, totalAmount } = priced;
+    const discount = priced.discount;
     // Shipping is applied inside Magic Checkout via shipping-info callback
     const shippingPrice = 0;
     const taxPrice = 0;
-    const totalAmount = discount.discountedItemsPrice;
     const orderId = generateOrderId();
     const phone = normalizePhone(contact?.phone || req.user.phone) || '0000000000';
 
@@ -408,8 +418,8 @@ router.post('/magic/create', protect, async (req, res) => {
           pincode: '400001'
         },
         itemsPrice,
-        discountAmount: discount.discountAmount,
-        discountCode: discount.discountAmount > 0 ? discount.discountCode : null,
+        discountAmount,
+        discountCode,
         shippingPrice,
         taxPrice,
         totalAmount,
@@ -421,8 +431,8 @@ router.post('/magic/create', protect, async (req, res) => {
 
     await deductOrderStock(orderItems, conn);
 
-    const lineItems = buildLineItems(orderItems, discount.discountAmount);
-    const lineTotal = lineItemsTotalPaise(orderItems, discount.discountAmount);
+    const lineItems = buildLineItems(orderItems, discountAmount);
+    const lineTotal = lineItemsTotalPaise(orderItems, discountAmount);
 
     const razorpayOrder = await razorpay.orders.create({
       amount: lineTotal,
@@ -434,10 +444,10 @@ router.post('/magic/create', protect, async (req, res) => {
         orderId,
         userId: req.user._id.toString(),
         preferredMethod,
-        ...(discount.discountAmount > 0
+        ...(discountAmount > 0
           ? {
-              discountCode: discount.discountCode,
-              discountAmount: String(discount.discountAmount)
+              discountCode: discountCode || '',
+              discountAmount: String(discountAmount)
             }
           : {})
       }
@@ -453,11 +463,11 @@ router.post('/magic/create', protect, async (req, res) => {
       success: true,
       order: savedOrder,
       discount: {
-        eligible: discount.eligible,
+        eligible: discountAmount > 0,
         percent: discount.discountPercent,
-        amount: discount.discountAmount,
-        code: discount.discountAmount > 0 ? discount.discountCode : null,
-        source: resolved.source
+        amount: discountAmount,
+        code: discountCode,
+        source: priced.festival ? 'festival' : priced.source
       },
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
